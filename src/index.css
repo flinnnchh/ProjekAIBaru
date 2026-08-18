@@ -4,25 +4,36 @@
 
 @layer base {
   body {
-    @apply bg-[#0B0F19] text-slate-100 font-sans;
+    background-color: #0B1220;
+    background-image: 
+      radial-gradient(circle at 15% 15%, rgba(35, 56, 99, 0.75) 0%, transparent 50%),
+      radial-gradient(circle at 85% 65%, rgba(61, 214, 232, 0.15) 0%, transparent 45%),
+      linear-gradient(180deg, #141E33 0%, #0B1220 55%, #080E1A 100%);
+    background-attachment: fixed;
+    color: #FFFFFF;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
 
-/* Custom sleek dark scrollbars */
+/* Custom Sleek High-Contrast Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: #0B1220;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.8);
+  background: #233863;
   border-radius: 9999px;
+  border: 1px solid rgba(61, 214, 232, 0.2);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(71, 85, 105, 1);
+  background: #3DD6E8;
 }
+
+
+

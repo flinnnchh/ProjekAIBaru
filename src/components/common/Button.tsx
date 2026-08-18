@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'success' | 'outline' | 'ghost';
+  variant?: 'primary' | 'accent' | 'secondary' | 'danger' | 'warning' | 'success' | 'outline' | 'ghost' | 'navy';
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
   loading?: boolean;
@@ -17,22 +17,29 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = "inline-flex items-center justify-center font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B0F19] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none";
+  const baseStyles = "inline-flex items-center justify-center font-bold transition-all duration-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B1220] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none";
 
   const sizeStyles = {
-    sm: "px-3 py-1.5 text-xs gap-1.5",
+    sm: "px-3.5 py-1.5 text-xs gap-1.5",
     md: "px-4 py-2 text-sm gap-2",
-    lg: "px-6 py-3 text-base gap-2.5 font-semibold",
+    lg: "px-6 py-3 text-base gap-2.5",
   };
 
   const variantStyles = {
-    primary: "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25 focus:ring-blue-500",
-    secondary: "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 focus:ring-slate-600",
-    danger: "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/25 focus:ring-red-500",
-    warning: "bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold shadow-lg shadow-amber-500/25 focus:ring-amber-400",
-    success: "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 focus:ring-emerald-500",
-    outline: "border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white bg-transparent focus:ring-slate-500",
-    ghost: "text-slate-400 hover:text-white hover:bg-slate-800/60 focus:ring-slate-700",
+    // Primary CTA is Gold #F5B400 with dark navy text #0B1220 (as recommended for LUI)
+    primary: "bg-[#F5B400] hover:bg-[#E5A800] text-[#0B1220] font-extrabold shadow-md shadow-[#F5B400]/25 focus:ring-[#F5B400]",
+    // Accent CTA is also Gold
+    accent: "bg-[#F5B400] hover:bg-[#E5A800] text-[#0B1220] font-extrabold shadow-md shadow-[#F5B400]/25 focus:ring-[#F5B400]",
+    // Pause button is lighter gold #D9A441 with dark navy text #0B1220
+    warning: "bg-[#D9A441] hover:bg-[#C89430] text-[#0B1220] font-extrabold shadow-md shadow-[#D9A441]/25 focus:ring-[#D9A441]",
+    // Record button is LUI Red Maroon #7A2530
+    danger: "bg-[#7A2530] hover:bg-[#992E3C] text-white border border-[#992E3C]/60 shadow-md shadow-[#7A2530]/40 focus:ring-[#992E3C]",
+    // Stop & Save or Navy is LUI Navy Terang #3A4E7A
+    navy: "bg-[#3A4E7A] hover:bg-[#4A6296] text-white border border-[#233863] shadow-md shadow-black/30 focus:ring-[#3DD6E8]",
+    secondary: "bg-[#141E33] hover:bg-[#1C2C4C] text-[#B8BFC9] hover:text-white border border-[#233863] focus:ring-[#3DD6E8]",
+    success: "bg-[#F5B400] hover:bg-[#E5A800] text-[#0B1220] font-extrabold shadow-md shadow-[#F5B400]/25 focus:ring-[#F5B400]",
+    outline: "border border-[#233863] hover:border-[#3DD6E8]/70 text-[#B8BFC9] hover:text-white bg-transparent focus:ring-[#3DD6E8]",
+    ghost: "text-[#B8BFC9] hover:text-white hover:bg-white/10 focus:ring-white/30",
   };
 
   return (
@@ -53,3 +60,6 @@ export const Button: React.FC<ButtonProps> = ({
     </button>
   );
 };
+
+
+

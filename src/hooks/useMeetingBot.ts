@@ -7,10 +7,10 @@ import { exportToTxt } from '../services/exportTxt';
 import { initSocket, getSocket, isSocketConnected } from '../services/socketClient';
 
 export function useMeetingBot() {
-  const [meetingUrl, setMeetingUrl] = useState('https://meet.google.com/jpj-ndpm-fzb');
-  const [meetingTitle, setMeetingTitle] = useState('Sesi Google Meet Live');
-  const [platform, setPlatform] = useState<MeetingPlatform>('gmeet');
-  const [language, setLanguage] = useState<'id' | 'en'>('en');
+  const [meetingUrl, setMeetingUrl] = useState('');
+  const [meetingTitle, setMeetingTitle] = useState('');
+  const [platform, setPlatform] = useState<MeetingPlatform>('');
+  const [language, setLanguage] = useState<'id' | 'en' | ''>('');
   const [botState, setBotState] = useState<BotState>('IDLE');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioActive, setAudioActive] = useState(false);
@@ -20,7 +20,8 @@ export function useMeetingBot() {
   const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [interimText, setInterimText] = useState('');
   const [interimSpeaker, setInterimSpeaker] = useState('Speaker 1');
-  const [interimLanguage, setInterimLanguage] = useState<'id' | 'en' | 'mixed'>('en');
+  const [interimLanguage, setInterimLanguage] = useState<'id' | 'en' | 'mixed'>('id');
+
 
   const [schedules, setSchedules] = useState<ScheduledMeeting[]>([]);
   const [history, setHistory] = useState<MeetingHistory[]>([]);
@@ -28,6 +29,7 @@ export function useMeetingBot() {
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const autoRecordOnStandbyRef = useRef<boolean>(false);
+  const activeScheduleIdRef = useRef<string | null>(null);
 
   // Inisialisasi Socket & Storage
   useEffect(() => {
@@ -79,6 +81,7 @@ export function useMeetingBot() {
         console.log(`[Auto-Scheduler] ⏰ Waktunya tiba untuk jadwal: "${dueSchedule.title}". Memulai bot otomatis...`);
         
         // Update status jadwal menjadi IN_PROGRESS
+        activeScheduleIdRef.current = dueSchedule.id;
         storageService.updateSchedule(dueSchedule.id, { status: 'IN_PROGRESS' });
         setSchedules(storageService.getSchedules());
 
@@ -86,6 +89,9 @@ export function useMeetingBot() {
         setMeetingTitle(dueSchedule.title);
         setMeetingUrl(dueSchedule.url);
         setPlatform(dueSchedule.platform);
+        if (dueSchedule.language) {
+          setLanguage(dueSchedule.language);
+        }
         
         if (dueSchedule.autoRecord) {
           autoRecordOnStandbyRef.current = true;
@@ -146,10 +152,22 @@ export function useMeetingBot() {
     if (!meetingUrl) return;
     setBotState('JOINING');
 
+    // Update matching schedule to IN_PROGRESS
+    const currentSchedules = storageService.getSchedules();
+    const matching = currentSchedules.find((s) => s.url === meetingUrl);
+    if (matching) {
+      activeScheduleIdRef.current = matching.id;
+      storageService.updateSchedule(matching.id, { status: 'IN_PROGRESS' });
+      setSchedules(storageService.getSchedules());
+    }
+
+    const effectivePlatform = platform || (meetingUrl.includes('zoom.us') ? 'zoom' : meetingUrl.includes('teams') ? 'teams' : 'gmeet');
+    const effectiveTitle = meetingTitle || 'Sesi Meeting Live';
+
     const socket = getSocket();
     if (socket && socket.connected) {
       console.log('[Frontend] Mengirim sinyal bot_join ke backend server...');
-      socket.emit('bot_join', { url: meetingUrl, platform, title: meetingTitle });
+      socket.emit('bot_join', { url: meetingUrl, platform: effectivePlatform, title: effectiveTitle });
     } else {
       console.warn('[Frontend] Socket belum terhubung ke backend server port 3001.');
       // Standalone fallback
@@ -164,10 +182,12 @@ export function useMeetingBot() {
     if (botState !== 'IN_ROOM_STANDBY') return;
     setBotState('RECORDING');
 
+    const effectiveLanguage = language || 'id';
+
     const socket = getSocket();
     if (socket && socket.connected) {
-      console.log(`[Frontend] Mengirim sinyal bot_record (Language: ${language}) ke backend...`);
-      socket.emit('bot_record', { language });
+      console.log(`[Frontend] Mengirim sinyal bot_record (Language: ${effectiveLanguage}) ke backend...`);
+      socket.emit('bot_record', { language: effectiveLanguage });
     }
   }, [botState, language]);
 
@@ -218,6 +238,7 @@ export function useMeetingBot() {
 
     storageService.saveHistoryItem(newHistoryItem);
     setHistory(storageService.getHistory());
+
     setIsClosureOpen(true);
   }, [botState, transcripts, meetingTitle, platform, meetingUrl, elapsedSeconds]);
 
@@ -229,11 +250,27 @@ export function useMeetingBot() {
     setAudioActive(false);
     setInterimText('');
 
+    // Update status jadwal menjadi COMPLETED jika bot keluar dari room
+    if (activeScheduleIdRef.current) {
+      storageService.updateSchedule(activeScheduleIdRef.current, { status: 'COMPLETED' });
+      setSchedules(storageService.getSchedules());
+      activeScheduleIdRef.current = null;
+    } else if (meetingUrl) {
+      const currentSchedules = storageService.getSchedules();
+      const matching = currentSchedules.find(
+        (s) => s.url === meetingUrl && (s.status === 'IN_PROGRESS' || s.status === 'UPCOMING')
+      );
+      if (matching) {
+        storageService.updateSchedule(matching.id, { status: 'COMPLETED' });
+        setSchedules(storageService.getSchedules());
+      }
+    }
+
     const socket = getSocket();
     if (socket && socket.connected) {
       socket.emit('bot_leave');
     }
-  }, []);
+  }, [meetingUrl]);
 
   const handleExportDocx = useCallback(() => {
     exportToDocx(
@@ -277,9 +314,16 @@ export function useMeetingBot() {
   }, []);
 
   const handleStartSessionFromSchedule = useCallback((schedule: ScheduledMeeting, autoJoin: boolean = true) => {
+    activeScheduleIdRef.current = schedule.id;
+    storageService.updateSchedule(schedule.id, { status: 'IN_PROGRESS' });
+    setSchedules(storageService.getSchedules());
+
     setMeetingTitle(schedule.title);
     setMeetingUrl(schedule.url);
     setPlatform(schedule.platform);
+    if (schedule.language) {
+      setLanguage(schedule.language);
+    }
     if (schedule.autoRecord) {
       autoRecordOnStandbyRef.current = true;
     }
@@ -295,6 +339,13 @@ export function useMeetingBot() {
       }
     }
   }, []);
+
+  // Aksi: Bersihkan Transkrip
+  const handleClearTranscripts = useCallback(() => {
+    setTranscripts([]);
+    setInterimText('');
+  }, []);
+
 
   return {
     meetingUrl,
@@ -327,9 +378,11 @@ export function useMeetingBot() {
     handleLeave,
     handleExportDocx,
     handleExportTxt,
+    handleClearTranscripts,
     handleAddSchedule,
     handleDeleteSchedule,
     handleDeleteHistoryItem,
     handleStartSessionFromSchedule
   };
 }
+

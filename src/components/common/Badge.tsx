@@ -2,7 +2,7 @@ import React from 'react';
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'default' | 'success' | 'danger' | 'warning' | 'info' | 'purple' | 'cyan';
+  variant?: 'default' | 'primary' | 'success' | 'danger' | 'warning' | 'info' | 'cyan' | 'neutral';
   size?: 'sm' | 'md';
   pulse?: boolean;
   className?: string;
@@ -16,18 +16,25 @@ export const Badge: React.FC<BadgeProps> = ({
   className = '',
 }) => {
   const sizeStyles = {
-    sm: "px-2 py-0.5 text-[10px] font-semibold tracking-wider",
-    md: "px-2.5 py-1 text-xs font-medium",
+    sm: "px-2 py-0.5 text-[10px] font-bold tracking-wider",
+    md: "px-2.5 py-1 text-xs font-bold",
   };
 
   const variantStyles = {
-    default: "bg-slate-800 text-slate-300 border border-slate-700/60",
-    success: "bg-emerald-950/80 text-emerald-300 border border-emerald-500/30",
-    danger: "bg-red-950/80 text-red-300 border border-red-500/30",
-    warning: "bg-amber-950/80 text-amber-300 border border-amber-500/30",
-    info: "bg-blue-950/80 text-blue-300 border border-blue-500/30",
-    purple: "bg-purple-950/80 text-purple-300 border border-purple-500/30",
-    cyan: "bg-cyan-950/80 text-cyan-300 border border-cyan-500/30",
+    default: "bg-[#141E33] text-[#B8BFC9] border border-[#233863]",
+    // Primary / Navy
+    primary: "bg-[#233863]/60 text-white border border-[#3A4E7A]",
+    // Gold
+    success: "bg-[#F5B400]/20 text-[#F5B400] border border-[#F5B400]/50 shadow-sm",
+    // Maroon
+    danger: "bg-[#7A2530]/30 text-[#FF8E9D] border border-[#7A2530] shadow-sm",
+    // Gold Lighter
+    warning: "bg-[#D9A441]/20 text-[#D9A441] border border-[#D9A441]/50",
+    // LUI Cyan Highlight #3DD6E8
+    info: "bg-[#3DD6E8]/15 text-[#3DD6E8] border border-[#3DD6E8]/50",
+    cyan: "bg-[#3DD6E8]/15 text-[#3DD6E8] border border-[#3DD6E8]/50",
+    // Neutral Grey #B8BFC9
+    neutral: "bg-[#141E33] text-[#B8BFC9] border border-[#233863]",
   };
 
   return (
@@ -44,3 +51,6 @@ export const Badge: React.FC<BadgeProps> = ({
     </span>
   );
 };
+
+
+

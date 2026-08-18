@@ -1,4 +1,4 @@
-export type MeetingPlatform = 'gmeet' | 'zoom' | 'teams';
+export type MeetingPlatform = 'gmeet' | 'zoom' | 'teams' | '';
 
 export type BotState = 
   | 'IDLE'           // Disconnected, siap join
@@ -8,6 +8,7 @@ export type BotState =
   | 'PAUSED'         // Rekaman dijeda sementara
   | 'LEAVING'        // Keluar dari room
   | 'ERROR';         // Terjadi error koneksi
+
 
 export interface MeetingSession {
   id: string;
@@ -32,7 +33,8 @@ export interface ScheduledMeeting {
   url: string;
   scheduledTime: string;
   autoRecord: boolean;
-  status: 'UPCOMING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  language?: 'id' | 'en' | '';
+  status: 'UPCOMING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'MISSED';
   createdAt: string;
 }
 

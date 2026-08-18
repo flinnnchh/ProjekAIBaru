@@ -8,33 +8,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: {
-          DEFAULT: '#0B0F19',
-          card: 'rgba(17, 24, 39, 0.75)',
-          panel: 'rgba(31, 41, 55, 0.6)',
-          elevated: '#1A2234',
+        lui: {
+          bg: '#0B1220',
+          'bg-deep': '#080E1A',
+          card: '#141E33',
+          border: '#233863',
+          navy: '#3A4E7A',
+          gold: '#F5B400',
+          'gold-light': '#D9A441',
+          cyan: '#3DD6E8',
+          maroon: '#7A2530',
+          'maroon-bright': '#992E3C',
+          text: '#FFFFFF',
+          muted: '#B8BFC9',
         },
-        primary: {
-          DEFAULT: '#3B82F6',
-          hover: '#2563EB',
-          glow: 'rgba(59, 130, 246, 0.35)',
-        },
-        recording: {
-          DEFAULT: '#EF4444',
-          pulse: 'rgba(239, 68, 68, 0.4)',
-        },
-        paused: {
-          DEFAULT: '#F59E0B',
-          glow: 'rgba(245, 158, 11, 0.3)',
-        },
-        connected: {
-          DEFAULT: '#10B981',
-          glow: 'rgba(16, 185, 129, 0.3)',
-        }
+      },
+      backgroundImage: {
+        'lui-gradient': 'radial-gradient(ellipse at 15% 15%, rgba(35, 56, 99, 0.6) 0%, transparent 60%), radial-gradient(ellipse at 85% 70%, rgba(61, 214, 232, 0.12) 0%, transparent 50%), linear-gradient(180deg, #141E33 0%, #0B1220 60%, #080E1A 100%)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
+      boxShadow: {
+        'lui-card': '0 8px 30px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px #233863',
+        'lui-hover': '0 12px 35px 0 rgba(0, 0, 0, 0.6), 0 0 0 1px #3DD6E8',
+        'lui-gold-glow': '0 4px 20px 0 rgba(245, 180, 0, 0.35)',
+        'lui-cyan-glow': '0 4px 15px 0 rgba(61, 214, 232, 0.3)',
       },
       animation: {
         'pulse-fast': 'pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -50,3 +50,6 @@ export default {
   },
   plugins: [],
 }
+
+
+

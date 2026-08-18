@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Keyboard, Command } from 'lucide-react';
+import { X, Keyboard } from 'lucide-react';
 import { Button } from '../common/Button';
 
 interface HotkeyGuideModalProps {
@@ -17,26 +17,28 @@ export const HotkeyGuideModal: React.FC<HotkeyGuideModalProps> = ({ isOpen, onCl
     { key: 'Ctrl + S', label: 'Stop & Save Rekaman', desc: 'Menghentikan rekaman permanen dan memunculkan modal download' },
     { key: 'Ctrl + Shift + T', label: 'Export ke .TXT', desc: 'Mengunduh transkrip real-time dalam format teks murni' },
     { key: 'Ctrl + Shift + D', label: 'Export ke .DOCX', desc: 'Mengunduh transkrip berformat tabel & metadata resmi Microsoft Word' },
+    { key: 'Ctrl + Shift + X', label: 'Bersihkan Transkrip Live', desc: 'Menghapus daftar teks transkrip live agar tidak menumpuk' },
     { key: '?', label: 'Buka Panduan Pintasan', desc: 'Menampilkan modal daftar tombol pintas keyboard ini' },
   ];
 
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl relative text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-lg bg-[#141E33] border border-[#233863] rounded-2xl p-6 shadow-2xl relative text-white">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-[#233863]">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-blue-950 border border-blue-500/30 rounded-lg text-blue-400">
+            <div className="p-2 bg-[#233863] border border-[#3A4E7A] rounded-xl text-[#3DD6E8] shadow-md">
               <Keyboard className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Panduan Tombol Pintas Keyboard</h2>
-              <p className="text-xs text-slate-400">Prinsip 8 Golden Rules: <em>Enable Frequent Users to Use Shortcuts</em></p>
+              <h2 className="text-base font-extrabold text-white">Panduan Tombol Pintas Keyboard</h2>
+              <p className="text-xs text-[#B8BFC9]">Akses cepat dan efisien bagi operator meeting enterprise</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-[#B8BFC9] hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -47,13 +49,13 @@ export const HotkeyGuideModal: React.FC<HotkeyGuideModalProps> = ({ isOpen, onCl
           {shortcuts.map((sc, idx) => (
             <div
               key={idx}
-              className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80 hover:border-slate-700 transition-colors"
+              className="flex items-center justify-between p-3 bg-[#0B1220] rounded-xl border border-[#233863] hover:border-[#3DD6E8]/50 transition-colors"
             >
               <div>
-                <div className="text-xs font-semibold text-slate-200">{sc.label}</div>
-                <div className="text-[11px] text-slate-400">{sc.desc}</div>
+                <div className="text-xs font-bold text-white">{sc.label}</div>
+                <div className="text-[11px] text-[#B8BFC9]">{sc.desc}</div>
               </div>
-              <kbd className="px-2.5 py-1 text-xs font-mono font-bold text-cyan-300 bg-slate-800 border border-slate-700 rounded-lg shadow-inner">
+              <kbd className="px-2.5 py-1 text-xs font-mono font-bold text-[#F5B400] bg-[#233863] border border-[#3A4E7A] rounded-lg shadow-sm">
                 {sc.key}
               </kbd>
             </div>
@@ -61,7 +63,7 @@ export const HotkeyGuideModal: React.FC<HotkeyGuideModalProps> = ({ isOpen, onCl
         </div>
 
         {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+        <div className="mt-6 pt-4 border-t border-[#233863] flex justify-end">
           <Button variant="secondary" size="sm" onClick={onClose}>
             Tutup (Esc)
           </Button>
@@ -70,3 +72,6 @@ export const HotkeyGuideModal: React.FC<HotkeyGuideModalProps> = ({ isOpen, onCl
     </div>
   );
 };
+
+
+

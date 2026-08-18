@@ -7,6 +7,7 @@ interface HotkeyActions {
   onStop?: () => void;
   onExportTxt?: () => void;
   onExportDocx?: () => void;
+  onClearTranscripts?: () => void;
   onToggleGuide?: () => void;
 }
 
@@ -44,7 +45,7 @@ export function useHotkeys(actions: HotkeyActions) {
           actions.onRecord?.();
         }
         // Ctrl + S : Stop & Save
-        else if (e.key.toLowerCase() === 's') {
+        else if (e.key.toLowerCase() === 's' && !e.shiftKey) {
           e.preventDefault();
           actions.onStop?.();
         }
@@ -58,6 +59,11 @@ export function useHotkeys(actions: HotkeyActions) {
           e.preventDefault();
           actions.onExportDocx?.();
         }
+        // Ctrl + Shift + X : Clear Transcripts
+        else if (e.shiftKey && e.key.toLowerCase() === 'x') {
+          e.preventDefault();
+          actions.onClearTranscripts?.();
+        }
       }
     };
 
@@ -65,3 +71,4 @@ export function useHotkeys(actions: HotkeyActions) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [actions]);
 }
+

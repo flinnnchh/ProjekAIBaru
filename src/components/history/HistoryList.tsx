@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { History, Search, FileText, Trash2, Eye, Download, FileCode, Clock, Globe2 } from 'lucide-react';
+import { History, Search, Trash2, Eye, Clock } from 'lucide-react';
 import { MeetingHistory } from '../../types/meeting';
-import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { TranscriptViewerModal } from './TranscriptViewerModal';
 import { exportToDocx } from '../../services/exportDocx';
@@ -28,11 +27,11 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
   const getPlatformBadge = (platform: string) => {
     switch (platform) {
       case 'gmeet':
-        return <Badge variant="success" size="sm">Google Meet</Badge>;
+        return <Badge variant="cyan" size="sm">Google Meet</Badge>;
       case 'zoom':
-        return <Badge variant="info" size="sm">Zoom</Badge>;
+        return <Badge variant="neutral" size="sm">Zoom</Badge>;
       case 'teams':
-        return <Badge variant="purple" size="sm">MS Teams</Badge>;
+        return <Badge variant="primary" size="sm">MS Teams</Badge>;
       default:
         return <Badge variant="default" size="sm">{platform}</Badge>;
     }
@@ -95,16 +94,16 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
   return (
     <div className="space-y-4">
       {/* Header & Search */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 p-5 rounded-2xl border border-slate-800/90 shadow-xl backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#141E33] p-5 rounded-2xl border border-[#233863] shadow-lui-card backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-950/80 border border-blue-500/30 rounded-xl text-blue-400">
+          <div className="p-2.5 bg-[#233863] border border-[#3A4E7A] rounded-xl text-[#3DD6E8] shadow-md">
             <History className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-white tracking-wide">
-              Riwayat Rekaman & Arsip Transkrip
+            <h2 className="text-base font-extrabold text-white tracking-wide">
+              Riwayat Rekaman &amp; Arsip Transkrip
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[#B8BFC9]">
               Koleksi sesi rekaman yang telah selesai diproses oleh Deepgram Nova-2.
             </p>
           </div>
@@ -116,19 +115,19 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari riwayat atau kata kunci..."
-            className="bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+            className="bg-[#0B1220] border border-[#233863] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-[#B8BFC9]/60 focus:outline-none focus:ring-2 focus:ring-[#3DD6E8] w-64 shadow-inner"
           />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#B8BFC9] absolute left-3 top-2.5 pointer-events-none" />
         </div>
       </div>
 
       {/* History Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredHistory.length === 0 ? (
-          <div className="col-span-full bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-12 text-center">
-            <History className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-            <p className="text-xs font-semibold text-slate-300">Belum ada riwayat transkrip yang tersimpan</p>
-            <p className="text-[11px] text-slate-500 mt-1">Lakukan rekaman pada tab Live Session untuk membuat arsip baru.</p>
+          <div className="col-span-full bg-[#141E33]/60 border border-dashed border-[#233863] rounded-2xl p-12 text-center shadow-inner">
+            <History className="w-10 h-10 text-[#B8BFC9]/40 mx-auto mb-2" />
+            <p className="text-xs font-bold text-white">Belum ada riwayat transkrip yang tersimpan</p>
+            <p className="text-[11px] text-[#B8BFC9] mt-1">Lakukan rekaman pada tab Live Session untuk membuat arsip baru.</p>
           </div>
         ) : (
           filteredHistory.map((item) => {
@@ -139,13 +138,13 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
               <div
                 key={item.id}
                 onClick={() => setSelectedItem(item)}
-                className="bg-slate-900/80 border border-slate-800/90 hover:border-slate-700/90 rounded-2xl p-5 shadow-lg backdrop-blur-xl space-y-3 transition-all flex flex-col justify-between cursor-pointer group"
+                className="bg-[#141E33] border border-[#233863] hover:border-[#3DD6E8]/60 rounded-2xl p-5 shadow-lui-card hover:shadow-lui-hover space-y-3 transition-all flex flex-col justify-between cursor-pointer group backdrop-blur-xl"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       {getPlatformBadge(item.platform)}
-                      <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30">
+                      <span className="text-[10px] font-mono font-bold text-[#3DD6E8] bg-[#0B1220] px-2.5 py-0.5 rounded-full border border-[#233863]">
                         {item.speakersCount} Pembicara
                       </span>
                     </div>
@@ -155,50 +154,50 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
                         e.stopPropagation();
                         onDeleteHistoryItem(item.id);
                       }}
-                      className="text-slate-500 hover:text-red-400 p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                      className="text-[#B8BFC9] hover:text-[#FF8E9D] p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                       title="Hapus Riwayat"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <h3 className="text-sm font-bold text-white mt-2 group-hover:text-blue-400 transition-colors">
+                  <h3 className="text-sm font-extrabold text-white mt-2 group-hover:text-[#F5B400] transition-colors leading-snug">
                     {item.title}
                   </h3>
 
-                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 font-mono">
+                  <div className="flex items-center gap-3 text-xs text-[#B8BFC9] mt-1 font-mono">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-blue-400" />
+                      <Clock className="w-3.5 h-3.5 text-[#3DD6E8]" />
                       {mins}m {secs}s
                     </span>
                     <span>•</span>
                     <span>{new Date(item.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     <span>•</span>
-                    <span className="text-slate-300 font-semibold">{item.totalWords} Kata</span>
+                    <span className="text-white font-bold">{item.totalWords} Kata</span>
                   </div>
 
-                  <p className="mt-2 text-xs text-slate-300 italic bg-slate-950/60 p-3 rounded-xl border border-slate-800 line-clamp-2">
+                  <p className="mt-2 text-xs text-[#B8BFC9] italic bg-[#0B1220] p-3 rounded-xl border border-[#233863] line-clamp-2">
                     "{item.transcriptSnippet}"
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-blue-400 flex items-center gap-1 group-hover:underline">
-                    <Eye className="w-3.5 h-3.5" />
+                <div className="pt-3 border-t border-[#233863] flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#3DD6E8] flex items-center gap-1 group-hover:underline">
+                    <Eye className="w-3.5 h-3.5 text-[#3DD6E8]" />
                     Buka Transkrip Lengkap
                   </span>
 
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => handleQuickTxt(e, item)}
-                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-mono border border-slate-700 transition-colors"
+                      className="px-2.5 py-1 bg-[#0B1220] hover:bg-[#141E33] text-[#B8BFC9] hover:text-white rounded-lg text-xs font-mono font-bold border border-[#233863] transition-colors shadow-sm"
                       title="Quick Download .TXT"
                     >
                       .TXT
                     </button>
                     <button
                       onClick={(e) => handleQuickDocx(e, item)}
-                      className="p-1.5 bg-blue-950 hover:bg-blue-900 text-blue-300 hover:text-white rounded-lg text-xs font-mono border border-blue-500/40 transition-colors"
+                      className="px-2.5 py-1 bg-[#3A4E7A] hover:bg-[#4A6296] text-white rounded-lg text-xs font-mono font-bold border border-[#233863] transition-colors shadow-sm"
                       title="Quick Download .DOCX"
                     >
                       .DOCX
@@ -219,3 +218,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
     </div>
   );
 };
+
+
+
