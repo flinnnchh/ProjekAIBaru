@@ -59,7 +59,7 @@ Dibangun dengan standar **8 Golden Rules of Interface Design**, sistem autentika
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              Frontend Web Dashboard (React + Vite)       │
+│             Frontend Web Dashboard (React + Vite)       │
 │  - Control Panel (Join/Record/Pause/Stop/Leave)         │
 │  - Live Audio Waveform & Live Subtitle Stream           │
 │  - Schedule & History Manager                           │
@@ -225,8 +225,8 @@ Buka browser Anda dan akses:
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  1. JOIN     │ ──> │  2. RECORD   │ ──> │  3. TRANSCRIBE│ ──> │  4. STOP     │ ──> │  5. EXPORT   │
-│  Bot Masuk   │     │  Mulai Audio │     │  Live Stream │     │  Simpan Sesi │     │  DOCX / TXT  │
+│  1. JOIN     │ ──> │  2. RECORD   │ ──> │ 3. TRANSCRIBE│ ──> │  4. STOP     │ ──> │  5. EXPORT   │
+│  Bot Masuk   │     │  Mulai Audio │     │ Live Stream  │     │  Simpan Sesi │     │  DOCX / TXT  │
 └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
