@@ -9,6 +9,7 @@ export class DeepgramService {
   private deepgram: any = null;
   private liveConnection: any = null;
   private keepAliveInterval: any = null;
+  private isPaused: boolean = false;
 
   constructor(private io: SocketIOServer, apiKey?: string) {
     const key = apiKey || process.env.DEEPGRAM_API_KEY;
@@ -65,6 +66,9 @@ export class DeepgramService {
 
         let chunksForwarded = 0;
         audioStream.on('data', (chunk: Buffer) => {
+          // Jika sedang di-pause, jangan kirim audio ke Deepgram
+          if (this.isPaused) return;
+
           chunksForwarded++;
           if (chunksForwarded === 1) {
             console.log('[DeepgramService] ✅ Chunk audio PERTAMA diterima dari bot dan dikirim ke Deepgram.');
@@ -87,6 +91,9 @@ export class DeepgramService {
         const isFinal = data.is_final;
 
         if (!transcript || transcript.trim() === '') return;
+
+        // Jika sedang di-pause, abaikan transcript yang masuk
+        if (this.isPaused) return;
 
         console.log(`[Deepgram STT] (${isFinal ? 'FINAL' : 'LIVE'}): ${transcript}`);
 
@@ -132,7 +139,18 @@ export class DeepgramService {
     }
   }
 
+  public pauseStream() {
+    this.isPaused = true;
+    console.log('[DeepgramService] ⏸️ Stream di-PAUSE. Audio tidak dikirim ke Deepgram, transkrip ditahan.');
+  }
+
+  public resumeStream() {
+    this.isPaused = false;
+    console.log('[DeepgramService] ▶️ Stream di-RESUME. Audio kembali dikirim ke Deepgram.');
+  }
+
   public stopLiveStream() {
+    this.isPaused = false;
     if (this.keepAliveInterval) {
       clearInterval(this.keepAliveInterval);
       this.keepAliveInterval = null;

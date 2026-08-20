@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, FileText, Clock, Users, FileCode, ArrowRight } from 'lucide-react';
+import { MaterialIcon } from '../common/MaterialIcon';
 import { Button } from '../common/Button';
 import { MeetingSession } from '../../types/meeting';
 import { TranscriptItem } from '../../types/transcript';
@@ -39,82 +39,93 @@ export const ClosureDialog: React.FC<ClosureDialogProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
-      <div className="w-full max-w-lg bg-[#141E33] border border-[#233863] rounded-2xl p-6 shadow-2xl relative text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-fade-in">
+      <div className="w-full max-w-lg glass-card-strong p-6 shadow-2xl relative text-white animate-celebration">
         {/* Success Icon & Header */}
-        <div className="text-center pb-5 border-b border-[#233863]">
-          <div className="w-14 h-14 bg-[#F5B400]/20 border border-[#F5B400]/50 text-[#F5B400] rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <CheckCircle2 className="w-8 h-8" />
+        <div className="text-center pb-5 border-b border-[#233863]/60">
+          <div className="w-16 h-16 bg-gradient-to-br from-[#F5B400]/25 to-[#F5B400]/5 border border-[#F5B400]/30 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg glow-gold">
+            <MaterialIcon icon="check_circle" size="2xl" filled className="text-[#F5B400]" />
           </div>
-          <h2 className="text-xl font-extrabold text-white tracking-tight">Sesi Rekaman Selesai &amp; Tersimpan!</h2>
-          <p className="text-xs text-[#B8BFC9] mt-1">
-            Transkrip lengkap Deepgram Nova-2 telah diproses dan diarsipkan ke riwayat meeting.
+          <h2 className="text-xl font-extrabold text-white tracking-tight font-display">
+            Sesi Rekaman Selesai!
+          </h2>
+          <p className="text-xs text-[#8A94A3] mt-1.5">
+            Transkrip Deepgram Nova-2 telah diproses dan diarsipkan ke riwayat.
           </p>
         </div>
 
         {/* Meeting Summary Metrics */}
         <div className="grid grid-cols-3 gap-3 my-5">
-          <div className="bg-[#0B1220] p-3 rounded-xl border border-[#233863] text-center shadow-inner">
-            <div className="flex items-center justify-center text-[#B8BFC9] mb-1">
-              <Clock className="w-4 h-4 text-[#3DD6E8]" />
+          <div className="bg-[#0B1220] p-3.5 rounded-xl border border-[#233863] text-center shadow-lui-inner group hover:border-[#3DD6E8]/30 transition-all duration-200">
+            <div className="flex items-center justify-center mb-1.5">
+              <MaterialIcon icon="timer" size="md" className="text-[#3DD6E8] group-hover:scale-110 transition-transform" />
             </div>
             <div className="text-sm font-extrabold font-mono text-white">{durationStr}</div>
-            <div className="text-[10px] text-[#B8BFC9] uppercase font-semibold">Durasi Rekaman</div>
+            <div className="text-[10px] text-[#6B7585] uppercase font-semibold mt-0.5">Durasi</div>
           </div>
 
-          <div className="bg-[#0B1220] p-3 rounded-xl border border-[#233863] text-center shadow-inner">
-            <div className="flex items-center justify-center text-[#B8BFC9] mb-1">
-              <FileText className="w-4 h-4 text-[#F5B400]" />
+          <div className="bg-[#0B1220] p-3.5 rounded-xl border border-[#233863] text-center shadow-lui-inner group hover:border-[#F5B400]/30 transition-all duration-200">
+            <div className="flex items-center justify-center mb-1.5">
+              <MaterialIcon icon="text_fields" size="md" className="text-[#F5B400] group-hover:scale-110 transition-transform" />
             </div>
-            <div className="text-sm font-extrabold font-mono text-[#F5B400]">{totalWords}</div>
-            <div className="text-[10px] text-[#B8BFC9] uppercase font-semibold">Total Kata</div>
+            <div className="text-sm font-extrabold font-mono text-gradient-gold">{totalWords}</div>
+            <div className="text-[10px] text-[#6B7585] uppercase font-semibold mt-0.5">Total Kata</div>
           </div>
 
-          <div className="bg-[#0B1220] p-3 rounded-xl border border-[#233863] text-center shadow-inner">
-            <div className="flex items-center justify-center text-[#B8BFC9] mb-1">
-              <Users className="w-4 h-4 text-[#3DD6E8]" />
+          <div className="bg-[#0B1220] p-3.5 rounded-xl border border-[#233863] text-center shadow-lui-inner group hover:border-[#3DD6E8]/30 transition-all duration-200">
+            <div className="flex items-center justify-center mb-1.5">
+              <MaterialIcon icon="group" size="md" className="text-[#3DD6E8] group-hover:scale-110 transition-transform" />
             </div>
-            <div className="text-sm font-extrabold font-mono text-white">{uniqueSpeakers || 1} Pembicara</div>
-            <div className="text-[10px] text-[#B8BFC9] uppercase font-semibold">Diarization</div>
+            <div className="text-sm font-extrabold font-mono text-white">{uniqueSpeakers || 1}</div>
+            <div className="text-[10px] text-[#6B7585] uppercase font-semibold mt-0.5">Pembicara</div>
           </div>
         </div>
 
-        {/* Direct Download Actions */}
+        {/* Download Actions */}
         <div className="space-y-2.5">
           <div className="text-xs font-bold text-white flex items-center justify-between">
-            <span>Unduh Berkas Transkrip:</span>
-            <span className="text-[10px] text-[#B8BFC9] font-mono">Format Resmi Microsoft Word &amp; Text</span>
+            <span className="flex items-center gap-1.5">
+              <MaterialIcon icon="download" size="sm" className="text-[#3DD6E8]" />
+              Unduh Berkas Transkrip
+            </span>
+            <span className="text-[10px] text-[#6B7585] font-mono">Word & Text</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handleExportDocx}
-              className="flex items-center justify-center gap-2.5 p-3 bg-[#3A4E7A] hover:bg-[#4A6296] border border-[#233863] rounded-xl text-white transition-all shadow-md group"
+              className="flex items-center justify-center gap-2.5 p-3.5 bg-gradient-to-b from-[#3F5585] to-[#3A4E7A] hover:from-[#4A6296] hover:to-[#3F5585] border border-[#4A6296]/30 rounded-xl text-white transition-all duration-200 shadow-md group ripple-container active:scale-[0.97]"
             >
-              <FileCode className="w-5 h-5 text-[#3DD6E8] group-hover:scale-110 transition-transform" />
+              <MaterialIcon icon="code" size="lg" className="text-[#3DD6E8] group-hover:scale-110 transition-transform" />
               <div className="text-left">
-                <div className="text-xs font-extrabold">Unduh .DOCX (Word)</div>
-                <div className="text-[10px] text-[#B8BFC9]">Format Resmi &amp; Tabel</div>
+                <div className="text-xs font-extrabold">.DOCX (Word)</div>
+                <div className="text-[10px] text-[#8A94A3]">Format Resmi</div>
               </div>
             </button>
 
             <button
               onClick={handleExportTxt}
-              className="flex items-center justify-center gap-2.5 p-3 bg-[#0B1220] hover:bg-[#141E33] border border-[#233863] rounded-xl text-[#B8BFC9] hover:text-white transition-all shadow-md group"
+              className="flex items-center justify-center gap-2.5 p-3.5 bg-[#0B1220] hover:bg-[#141E33] border border-[#233863] hover:border-[#3A4E7A] rounded-xl text-[#B8BFC9] hover:text-white transition-all duration-200 shadow-md group ripple-container active:scale-[0.97]"
             >
-              <FileText className="w-5 h-5 text-[#B8BFC9] group-hover:scale-110 transition-transform" />
+              <MaterialIcon icon="description" size="lg" className="text-[#8A94A3] group-hover:text-[#B8BFC9] group-hover:scale-110 transition-all" />
               <div className="text-left">
-                <div className="text-xs font-extrabold">Unduh .TXT</div>
-                <div className="text-[10px] text-[#B8BFC9]">Plain Text &amp; Log</div>
+                <div className="text-xs font-extrabold">.TXT</div>
+                <div className="text-[10px] text-[#6B7585]">Plain Text</div>
               </div>
             </button>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-6 pt-4 border-t border-[#233863] flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={onGoToHistory} className="text-xs text-[#3DD6E8]">
-            Lihat di Riwayat <ArrowRight className="w-3.5 h-3.5 ml-1" />
+        <div className="mt-6 pt-4 border-t border-[#233863]/60 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onGoToHistory}
+            className="text-xs text-[#3DD6E8]"
+            iconRight={<MaterialIcon icon="arrow_forward" size="sm" />}
+          >
+            Lihat Riwayat
           </Button>
 
           <Button variant="accent" size="sm" onClick={onClose}>
@@ -125,6 +136,3 @@ export const ClosureDialog: React.FC<ClosureDialogProps> = ({
     </div>
   );
 };
-
-
-

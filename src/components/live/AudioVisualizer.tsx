@@ -1,4 +1,5 @@
 import React from 'react';
+import { MaterialIcon } from '../common/MaterialIcon';
 
 interface AudioVisualizerProps {
   active: boolean;
@@ -6,30 +7,42 @@ interface AudioVisualizerProps {
 }
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ active, isRecording }) => {
-  // Generate 16 visualizer bars
   const bars = [12, 24, 16, 32, 28, 40, 20, 36, 14, 30, 26, 38, 18, 22, 16, 28];
 
   return (
-    <div className="flex items-center gap-1.5 h-9 px-3 py-1 bg-[#0B1220] rounded-xl border border-[#233863] shadow-inner">
-      <div className="text-[10px] uppercase font-mono font-bold text-[#B8BFC9] mr-2 flex items-center gap-1.5">
-        <span className={`w-2 h-2 rounded-full ${active ? 'bg-[#3DD6E8] animate-ping' : 'bg-slate-600'}`} />
-        AUDIO STREAM
+    <div className={`flex items-center gap-2 h-10 px-3 py-1.5 rounded-xl border shadow-lui-inner transition-all duration-300 ${
+      active && isRecording
+        ? 'bg-[#0B1220] border-[#3DD6E8]/30 glow-cyan'
+        : 'bg-[#0B1220] border-[#233863]'
+    }`}>
+      <div className="text-[10px] uppercase font-mono font-bold text-[#8A94A3] mr-1 flex items-center gap-1.5">
+        <MaterialIcon
+          icon="graphic_eq"
+          size="sm"
+          filled={active}
+          className={`transition-colors duration-200 ${active ? 'text-[#3DD6E8]' : 'text-[#6B7585]'}`}
+        />
+        <span className="hidden sm:inline">AUDIO</span>
       </div>
-      <div className="flex items-center gap-[3px] h-full">
+      <div className="flex items-center gap-[2px] h-full">
         {bars.map((maxH, idx) => {
+          const dynamicHeight = active && isRecording
+            ? `${Math.max(4, Math.random() * maxH)}px`
+            : '3px';
+
           return (
             <span
               key={idx}
               style={{
-                height: active && isRecording ? undefined : '4px',
-                animationDelay: `${idx * 0.08}s`
+                height: active && isRecording ? undefined : '3px',
+                animationDelay: `${idx * 0.08}s`,
               }}
               className={`w-[3px] rounded-full transition-all duration-150 ${
                 active && isRecording
-                  ? 'bg-gradient-to-t from-[#233863] via-[#3A4E7A] to-[#3DD6E8] shadow-sm shadow-[#3DD6E8] animate-pulse'
+                  ? 'bg-gradient-to-t from-[#233863] via-[#3DD6E8] to-[#7EEAF5] animate-pulse shadow-sm shadow-[#3DD6E8]/40'
                   : isRecording
                   ? 'bg-[#233863]'
-                  : 'bg-[#141E33]'
+                  : 'bg-[#1A2845]'
               }`}
             />
           );
@@ -38,6 +51,3 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ active, isReco
     </div>
   );
 };
-
-
-

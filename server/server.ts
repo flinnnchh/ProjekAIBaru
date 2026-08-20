@@ -86,6 +86,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('bot_pause', () => {
+    console.log(`[Socket.io] ⏸️ Menerima sinyal PAUSE dari frontend...`);
+    deepgramService.pauseStream();
+    socket.emit('bot_state_change', 'PAUSED');
+  });
+
+  socket.on('bot_resume', () => {
+    console.log(`[Socket.io] ▶️ Menerima sinyal RESUME dari frontend...`);
+    deepgramService.resumeStream();
+    socket.emit('bot_state_change', 'RECORDING');
+  });
+
   socket.on('bot_stop', async () => {
     console.log(`[Socket.io] Menghentikan rekaman...`);
     if (activeBotAdapter) {

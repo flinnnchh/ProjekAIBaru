@@ -193,11 +193,23 @@ export function useMeetingBot() {
 
   // Aksi: 3. PAUSE / RESUME
   const handlePauseResume = useCallback(() => {
+    const socket = getSocket();
     if (botState === 'RECORDING') {
       setBotState('PAUSED');
       setAudioActive(false);
+      setInterimText('');
+      // Kirim sinyal pause ke backend agar Deepgram berhenti menerima audio
+      if (socket && socket.connected) {
+        console.log('[Frontend] Mengirim sinyal bot_pause ke backend...');
+        socket.emit('bot_pause');
+      }
     } else if (botState === 'PAUSED') {
       setBotState('RECORDING');
+      // Kirim sinyal resume ke backend agar Deepgram melanjutkan penerimaan audio
+      if (socket && socket.connected) {
+        console.log('[Frontend] Mengirim sinyal bot_resume ke backend...');
+        socket.emit('bot_resume');
+      }
     }
   }, [botState]);
 

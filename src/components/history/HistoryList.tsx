@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { History, Search, Trash2, Eye, Clock } from 'lucide-react';
+import { MaterialIcon } from '../common/MaterialIcon';
 import { MeetingHistory } from '../../types/meeting';
 import { Badge } from '../common/Badge';
 import { TranscriptViewerModal } from './TranscriptViewerModal';
@@ -24,22 +24,17 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
     );
   });
 
-  const getPlatformBadge = (platform: string) => {
+  const getPlatformInfo = (platform: string) => {
     switch (platform) {
-      case 'gmeet':
-        return <Badge variant="cyan" size="sm">Google Meet</Badge>;
-      case 'zoom':
-        return <Badge variant="neutral" size="sm">Zoom</Badge>;
-      case 'teams':
-        return <Badge variant="primary" size="sm">MS Teams</Badge>;
-      default:
-        return <Badge variant="default" size="sm">{platform}</Badge>;
+      case 'gmeet': return { label: 'Google Meet', icon: 'video_call', badgeVariant: 'cyan' as const };
+      case 'zoom': return { label: 'Zoom', icon: 'videocam', badgeVariant: 'neutral' as const };
+      case 'teams': return { label: 'MS Teams', icon: 'groups', badgeVariant: 'primary' as const };
+      default: return { label: platform, icon: 'videocam', badgeVariant: 'default' as const };
     }
   };
 
-  const handleQuickDocx = (e: React.MouseEvent, item: MeetingHistory) => {
-    e.stopPropagation();
-    const transcriptItems: TranscriptItem[] = item.transcripts.map((t, idx) => ({
+  const makeTranscriptItems = (item: MeetingHistory): TranscriptItem[] => {
+    return item.transcripts.map((t, idx) => ({
       id: t.id || `hist-t-${idx}`,
       meetingId: item.id,
       speaker: t.speaker,
@@ -51,60 +46,38 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
       confidence: 0.98,
       createdAt: Date.now()
     }));
+  };
 
+  const handleQuickDocx = (e: React.MouseEvent, item: MeetingHistory) => {
+    e.stopPropagation();
     exportToDocx(
-      {
-        title: item.title,
-        platform: item.platform,
-        url: item.url,
-        elapsedSeconds: item.durationSeconds,
-        vpnIp: '10.24.0.12'
-      },
-      transcriptItems
+      { title: item.title, platform: item.platform, url: item.url, elapsedSeconds: item.durationSeconds, vpnIp: '10.24.0.12' },
+      makeTranscriptItems(item)
     );
   };
 
   const handleQuickTxt = (e: React.MouseEvent, item: MeetingHistory) => {
     e.stopPropagation();
-    const transcriptItems: TranscriptItem[] = item.transcripts.map((t, idx) => ({
-      id: t.id || `hist-t-${idx}`,
-      meetingId: item.id,
-      speaker: t.speaker,
-      speakerId: idx,
-      timestamp: t.timestamp,
-      text: t.text,
-      isFinal: true,
-      language: t.language || 'id',
-      confidence: 0.98,
-      createdAt: Date.now()
-    }));
-
     exportToTxt(
-      {
-        title: item.title,
-        platform: item.platform,
-        url: item.url,
-        elapsedSeconds: item.durationSeconds,
-        vpnIp: '10.24.0.12'
-      },
-      transcriptItems
+      { title: item.title, platform: item.platform, url: item.url, elapsedSeconds: item.durationSeconds, vpnIp: '10.24.0.12' },
+      makeTranscriptItems(item)
     );
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-slide-up">
       {/* Header & Search */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#141E33] p-5 rounded-2xl border border-[#233863] shadow-lui-card backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 glass-card-strong p-5">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-[#233863] border border-[#3A4E7A] rounded-xl text-[#3DD6E8] shadow-md">
-            <History className="w-5 h-5" />
+          <div className="p-2.5 bg-gradient-to-br from-[#233863] to-[#2D4A7A] border border-[#3A4E7A]/40 rounded-xl shadow-md">
+            <MaterialIcon icon="history" size="lg" className="text-[#3DD6E8]" />
           </div>
           <div>
-            <h2 className="text-base font-extrabold text-white tracking-wide">
-              Riwayat Rekaman &amp; Arsip Transkrip
+            <h2 className="text-base font-extrabold text-white tracking-wide font-display">
+              Riwayat & Arsip Transkrip
             </h2>
-            <p className="text-xs text-[#B8BFC9]">
-              Koleksi sesi rekaman yang telah selesai diproses oleh Deepgram Nova-2.
+            <p className="text-xs text-[#8A94A3]">
+              Koleksi sesi rekaman yang telah diproses oleh Deepgram Nova-2.
             </p>
           </div>
         </div>
@@ -115,38 +88,46 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari riwayat atau kata kunci..."
-            className="bg-[#0B1220] border border-[#233863] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-[#B8BFC9]/60 focus:outline-none focus:ring-2 focus:ring-[#3DD6E8] w-64 shadow-inner"
+            className="bg-[#0B1220] border border-[#233863] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder:text-[#6B7585] focus:outline-none focus:ring-2 focus:ring-[#3DD6E8]/50 w-64 shadow-lui-inner transition-all duration-200"
           />
-          <Search className="w-4 h-4 text-[#B8BFC9] absolute left-3 top-2.5 pointer-events-none" />
+          <MaterialIcon icon="search" size="sm" className="absolute left-3 top-2.5 pointer-events-none text-[#6B7585]" />
         </div>
       </div>
 
       {/* History Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredHistory.length === 0 ? (
-          <div className="col-span-full bg-[#141E33]/60 border border-dashed border-[#233863] rounded-2xl p-12 text-center shadow-inner">
-            <History className="w-10 h-10 text-[#B8BFC9]/40 mx-auto mb-2" />
-            <p className="text-xs font-bold text-white">Belum ada riwayat transkrip yang tersimpan</p>
-            <p className="text-[11px] text-[#B8BFC9] mt-1">Lakukan rekaman pada tab Live Session untuk membuat arsip baru.</p>
+          <div className="col-span-full glass-card p-12 text-center border-dashed animate-fade-in">
+            <div className="w-14 h-14 rounded-2xl bg-[#141E33] border border-[#233863] flex items-center justify-center mx-auto mb-3">
+              <MaterialIcon icon="history" size="xl" className="text-[#6B7585]" />
+            </div>
+            <p className="text-xs font-bold text-white font-display">Belum ada riwayat transkrip</p>
+            <p className="text-[11px] text-[#8A94A3] mt-1">Lakukan rekaman pada tab Live Session untuk membuat arsip baru.</p>
           </div>
         ) : (
           filteredHistory.map((item) => {
             const mins = Math.floor(item.durationSeconds / 60);
             const secs = item.durationSeconds % 60;
+            const platformInfo = getPlatformInfo(item.platform);
 
             return (
               <div
                 key={item.id}
                 onClick={() => setSelectedItem(item)}
-                className="bg-[#141E33] border border-[#233863] hover:border-[#3DD6E8]/60 rounded-2xl p-5 shadow-lui-card hover:shadow-lui-hover space-y-3 transition-all flex flex-col justify-between cursor-pointer group backdrop-blur-xl"
+                className="glass-card hover:shadow-lui-card-hover space-y-3 transition-all duration-200 flex flex-col justify-between cursor-pointer group gradient-border p-5"
               >
+                {/* Top color strip */}
+                <div className="absolute top-0 left-4 right-4 h-0.5 rounded-full bg-gradient-to-r from-[#3DD6E8]/50 via-[#F5B400]/50 to-[#3DD6E8]/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      {getPlatformBadge(item.platform)}
-                      <span className="text-[10px] font-mono font-bold text-[#3DD6E8] bg-[#0B1220] px-2.5 py-0.5 rounded-full border border-[#233863]">
-                        {item.speakersCount} Pembicara
-                      </span>
+                      <Badge variant={platformInfo.badgeVariant} size="sm" icon={platformInfo.icon}>
+                        {platformInfo.label}
+                      </Badge>
+                      <Badge variant="default" size="sm" icon="group">
+                        {item.speakersCount} Org
+                      </Badge>
                     </div>
 
                     <button
@@ -154,50 +135,50 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
                         e.stopPropagation();
                         onDeleteHistoryItem(item.id);
                       }}
-                      className="text-[#B8BFC9] hover:text-[#FF8E9D] p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                      className="text-[#6B7585] hover:text-[#FF8E9D] p-1.5 rounded-xl hover:bg-[#7A2530]/10 transition-all duration-200 active:scale-90"
                       title="Hapus Riwayat"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <MaterialIcon icon="delete" size="md" />
                     </button>
                   </div>
 
-                  <h3 className="text-sm font-extrabold text-white mt-2 group-hover:text-[#F5B400] transition-colors leading-snug">
+                  <h3 className="text-sm font-extrabold text-white mt-2.5 group-hover:text-gradient-gold transition-colors leading-snug font-display">
                     {item.title}
                   </h3>
 
-                  <div className="flex items-center gap-3 text-xs text-[#B8BFC9] mt-1 font-mono">
+                  <div className="flex items-center gap-3 text-xs text-[#8A94A3] mt-1.5 font-mono">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-[#3DD6E8]" />
+                      <MaterialIcon icon="timer" size="xs" className="text-[#3DD6E8]" />
                       {mins}m {secs}s
                     </span>
-                    <span>•</span>
+                    <span className="text-[#233863]">•</span>
                     <span>{new Date(item.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    <span>•</span>
+                    <span className="text-[#233863]">•</span>
                     <span className="text-white font-bold">{item.totalWords} Kata</span>
                   </div>
 
-                  <p className="mt-2 text-xs text-[#B8BFC9] italic bg-[#0B1220] p-3 rounded-xl border border-[#233863] line-clamp-2">
+                  <p className="mt-2.5 text-xs text-[#8A94A3] italic bg-[#0B1220] p-3 rounded-xl border border-[#233863] line-clamp-2 leading-relaxed">
                     "{item.transcriptSnippet}"
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-[#233863] flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#3DD6E8] flex items-center gap-1 group-hover:underline">
-                    <Eye className="w-3.5 h-3.5 text-[#3DD6E8]" />
-                    Buka Transkrip Lengkap
+                <div className="pt-3 border-t border-[#233863]/60 flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#3DD6E8] flex items-center gap-1.5 group-hover:underline decoration-[#3DD6E8]/40">
+                    <MaterialIcon icon="visibility" size="sm" />
+                    Buka Transkrip
                   </span>
 
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => handleQuickTxt(e, item)}
-                      className="px-2.5 py-1 bg-[#0B1220] hover:bg-[#141E33] text-[#B8BFC9] hover:text-white rounded-lg text-xs font-mono font-bold border border-[#233863] transition-colors shadow-sm"
+                      className="px-2.5 py-1 bg-[#0B1220] hover:bg-[#141E33] text-[#8A94A3] hover:text-white rounded-lg text-xs font-mono font-bold border border-[#233863] hover:border-[#3A4E7A] transition-all duration-200 shadow-sm active:scale-95"
                       title="Quick Download .TXT"
                     >
                       .TXT
                     </button>
                     <button
                       onClick={(e) => handleQuickDocx(e, item)}
-                      className="px-2.5 py-1 bg-[#3A4E7A] hover:bg-[#4A6296] text-white rounded-lg text-xs font-mono font-bold border border-[#233863] transition-colors shadow-sm"
+                      className="px-2.5 py-1 bg-gradient-to-b from-[#3F5585] to-[#3A4E7A] hover:from-[#4A6296] hover:to-[#3F5585] text-white rounded-lg text-xs font-mono font-bold border border-[#4A6296]/30 transition-all duration-200 shadow-sm active:scale-95"
                       title="Quick Download .DOCX"
                     >
                       .DOCX
@@ -210,7 +191,6 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
         )}
       </div>
 
-      {/* Transcript Viewer Modal */}
       <TranscriptViewerModal
         historyItem={selectedItem}
         onClose={() => setSelectedItem(null)}
@@ -218,6 +198,3 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
     </div>
   );
 };
-
-
-

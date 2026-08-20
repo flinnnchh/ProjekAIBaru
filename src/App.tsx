@@ -6,9 +6,9 @@ import { ScheduleList } from './components/schedule/ScheduleList';
 import { HistoryList } from './components/history/HistoryList';
 import { ClosureDialog } from './components/live/ClosureDialog';
 import { HotkeyGuideModal } from './components/live/HotkeyGuideModal';
+import { MaterialIcon } from './components/common/MaterialIcon';
 import { useMeetingBot } from './hooks/useMeetingBot';
 import { useHotkeys } from './hooks/useHotkeys';
-import { ShieldCheck, Cpu, Sparkles } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'live' | 'schedule' | 'history'>('live');
@@ -82,33 +82,35 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-white flex flex-col selection:bg-[#F5B400] selection:text-[#0B1220] relative overflow-x-hidden">
-      {/* Background Ambient Glows (Matching LUI Website Visuals) */}
+      {/* Background Ambient Glows */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#233863]/40 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -right-32 w-[500px] h-[500px] bg-[#3DD6E8]/10 rounded-full blur-3xl" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#233863]/30 rounded-full blur-3xl animate-float" />
+        <div className="absolute top-1/3 -right-32 w-[500px] h-[500px] bg-[#3DD6E8]/8 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-[#F5B400]/5 rounded-full blur-3xl" />
       </div>
 
       {/* Auto-Scheduler Notification Banner */}
       {activeNotification && (
-        <div className="bg-gradient-to-r from-[#141E33] via-[#233863] to-[#3A4E7A] text-white px-4 py-2.5 text-xs font-semibold shadow-lg sticky top-0 z-50 animate-in slide-in-from-top duration-300 border-b border-[#233863]">
+        <div className="bg-gradient-to-r from-[#141E33] via-[#1A2845] to-[#233863] text-white px-4 py-2.5 text-xs font-semibold shadow-lg sticky top-0 z-50 animate-slide-up border-b border-[#233863]/60">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <span className="p-1 rounded-lg bg-black/30">
-                <Sparkles className="w-3.5 h-3.5 text-[#F5B400]" />
+              <span className="p-1 rounded-lg bg-black/20">
+                <MaterialIcon icon="auto_awesome" size="sm" className="text-[#F5B400]" />
               </span>
               <span>{activeNotification}</span>
             </div>
             <button
               onClick={() => setActiveNotification(null)}
-              className="text-[#B8BFC9] hover:text-white bg-black/40 hover:bg-black/60 px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors"
+              className="text-[#8A94A3] hover:text-white bg-black/20 hover:bg-black/40 px-3 py-1 rounded-lg text-[11px] font-semibold transition-all duration-200 flex items-center gap-1"
             >
-              Tutup Notifikasi
+              <MaterialIcon icon="close" size="xs" />
+              Tutup
             </button>
           </div>
         </div>
       )}
 
-      {/* 1. Header & Navigation */}
+      {/* Header & Navigation */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -117,30 +119,30 @@ export function App() {
         vpnIp={vpnIp}
       />
 
-      {/* Mobile Floating Recording Status Pill (Rule 8: Reduce short-term memory load) */}
+      {/* Mobile Recording Status Pill (Rule 8: Reduce memory load) */}
       {botState === 'RECORDING' && (
-        <div className="sm:hidden sticky top-16 z-30 px-4 py-2 bg-[#7A2530]/95 backdrop-blur-md border-b border-[#FF8E9D]/40 text-white flex items-center justify-between text-xs shadow-lg animate-in slide-in-from-top-1">
+        <div className="sm:hidden sticky top-16 z-30 px-4 py-2 bg-gradient-to-r from-[#7A2530]/90 to-[#992E3C]/80 backdrop-blur-xl border-b border-[#FF8E9D]/30 text-white flex items-center justify-between text-xs shadow-lg animate-slide-up">
           <div className="flex items-center gap-2 font-mono">
-            <span className="w-2 h-2 rounded-full bg-[#FF8E9D] animate-ping" />
-            <span className="font-extrabold text-[11px] text-[#FF8E9D]">RECORDING</span>
+            <MaterialIcon icon="fiber_manual_record" size="xs" filled className="text-[#FF8E9D] animate-pulse" />
+            <span className="font-extrabold text-[11px] text-[#FF8E9D]">REC</span>
             <span className="font-bold">
               {Math.floor(elapsedSeconds / 60)}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
             </span>
           </div>
           <button
             onClick={handleStop}
-            className="px-2.5 py-1 bg-[#3A4E7A] hover:bg-[#4A6296] border border-[#233863] text-white rounded-lg text-[10px] font-bold shadow-sm"
+            className="px-2.5 py-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg text-[10px] font-bold shadow-sm transition-all duration-200 active:scale-95 flex items-center gap-1"
           >
-            Stop &amp; Simpan
+            <MaterialIcon icon="stop" size="xs" filled />
+            Stop & Simpan
           </button>
         </div>
       )}
 
-      {/* 2. Main Content Area */}
+      {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 relative z-10">
         {activeTab === 'live' && (
-          <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200">
-            {/* Top Live Control Panel */}
+          <div className="space-y-4 sm:space-y-6 animate-fade-in">
             <LiveControlPanel
               meetingUrl={meetingUrl}
               setMeetingUrl={setMeetingUrl}
@@ -159,8 +161,6 @@ export function App() {
               onStop={handleStop}
               onLeave={handleLeave}
             />
-
-            {/* Live Transcriber Panel */}
             <LiveTranscriber
               transcripts={transcripts}
               interimText={interimText}
@@ -175,57 +175,53 @@ export function App() {
         )}
 
         {activeTab === 'schedule' && (
-          <div className="animate-in fade-in duration-200">
-            <ScheduleList
-              schedules={schedules}
-              onAddSchedule={handleAddSchedule}
-              onDeleteSchedule={handleDeleteSchedule}
-              onStartSessionFromSchedule={onStartFromSchedule}
-              currentMeetingUrl={meetingUrl}
-              botState={botState}
-              onGoToLiveTab={() => setActiveTab('live')}
-            />
-          </div>
+          <ScheduleList
+            schedules={schedules}
+            onAddSchedule={handleAddSchedule}
+            onDeleteSchedule={handleDeleteSchedule}
+            onStartSessionFromSchedule={onStartFromSchedule}
+            currentMeetingUrl={meetingUrl}
+            botState={botState}
+            onGoToLiveTab={() => setActiveTab('live')}
+          />
         )}
 
         {activeTab === 'history' && (
-          <div className="animate-in fade-in duration-200">
-            <HistoryList
-              history={history}
-              onDeleteHistoryItem={handleDeleteHistoryItem}
-            />
-          </div>
+          <HistoryList
+            history={history}
+            onDeleteHistoryItem={handleDeleteHistoryItem}
+          />
         )}
       </main>
 
-      {/* 3. Footer Status Bar */}
-      <footer className="hidden sm:block border-t border-[#233863] bg-[#0B1220]/95 backdrop-blur-xl py-3.5 text-xs text-[#B8BFC9] shadow-lg relative z-10">
+      {/* Footer */}
+      <footer className="hidden sm:block border-t border-[#233863]/60 bg-[#0B1220]/90 backdrop-blur-2xl py-3.5 text-xs text-[#8A94A3] shadow-lg relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-[#B8BFC9]">
-              <Cpu className="w-3.5 h-3.5 text-[#3DD6E8]" />
+            <span className="flex items-center gap-1.5">
+              <MaterialIcon icon="memory" size="sm" className="text-[#3DD6E8]" />
               Engine: <strong className="text-white">Playwright + Deepgram Nova-2</strong>
             </span>
             <span className="hidden sm:inline-block text-[#233863]">•</span>
             <span className="hidden sm:flex items-center gap-1.5 text-[#3DD6E8]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#3DD6E8]" />
-              Traffic Encrypted via Corporate Private VPN
+              <MaterialIcon icon="vpn_lock" size="sm" />
+              Traffic Encrypted via Corporate VPN
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsHotkeyGuideOpen(true)}
-              className="text-[#B8BFC9] hover:text-white transition-colors"
+              className="text-[#8A94A3] hover:text-white transition-colors flex items-center gap-1.5"
             >
-              Hotkeys: <kbd className="font-mono bg-[#233863] px-1.5 py-0.5 rounded border border-[#3A4E7A] text-[11px] text-[#F5B400] font-bold">?</kbd>
+              Hotkeys: <kbd className="keycap">?</kbd>
             </button>
-            <span className="text-[#B8BFC9]/70 font-mono">v1.0.0 (Enterprise Production Ready)</span>
+            <span className="text-[#6B7585] font-mono">v1.0.0 (Enterprise)</span>
           </div>
         </div>
       </footer>
 
-      {/* 4. Modals & Dialogs */}
+      {/* Modals */}
       <ClosureDialog
         isOpen={isClosureOpen}
         session={{
@@ -252,6 +248,3 @@ export function App() {
 }
 
 export default App;
-
-
-

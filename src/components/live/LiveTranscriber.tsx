@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  FileText,
-  Search,
-  Users,
-  Sparkles,
-  ArrowDown,
-  Globe2,
-  FileCode,
-  Trash2,
-  RotateCcw
-} from 'lucide-react';
+import { MaterialIcon } from '../common/MaterialIcon';
 import { TranscriptItem } from '../../types/transcript';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
@@ -24,6 +14,30 @@ interface LiveTranscriberProps {
   onExportTxt: () => void;
   onClearTranscripts?: () => void;
 }
+
+// Speaker color palette for avatar initials
+const SPEAKER_COLORS = [
+  { bg: 'bg-[#3DD6E8]/20', text: 'text-[#3DD6E8]', border: 'border-[#3DD6E8]/30' },
+  { bg: 'bg-[#F5B400]/20', text: 'text-[#F5B400]', border: 'border-[#F5B400]/30' },
+  { bg: 'bg-[#FF8E9D]/20', text: 'text-[#FF8E9D]', border: 'border-[#FF8E9D]/30' },
+  { bg: 'bg-[#7EEAF5]/20', text: 'text-[#7EEAF5]', border: 'border-[#7EEAF5]/30' },
+  { bg: 'bg-[#D9A441]/20', text: 'text-[#D9A441]', border: 'border-[#D9A441]/30' },
+  { bg: 'bg-[#B8BFC9]/20', text: 'text-[#B8BFC9]', border: 'border-[#B8BFC9]/30' },
+];
+
+const getSpeakerColor = (speaker: string) => {
+  let hash = 0;
+  for (let i = 0; i < speaker.length; i++) {
+    hash = speaker.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return SPEAKER_COLORS[Math.abs(hash) % SPEAKER_COLORS.length];
+};
+
+const getSpeakerInitials = (speaker: string) => {
+  const parts = speaker.split(' ');
+  if (parts.length >= 2) return parts[0][0] + parts[1][0];
+  return speaker.substring(0, 2);
+};
 
 export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
   transcripts,
@@ -41,7 +55,6 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
   const [confirmClear, setConfirmClear] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-reset confirmation after 4 seconds
   useEffect(() => {
     if (confirmClear) {
       const t = setTimeout(() => setConfirmClear(false), 4000);
@@ -49,7 +62,6 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
     }
   }, [confirmClear]);
 
-  // Filtered list
   const filteredTranscripts = transcripts.filter((t) => {
     const matchSearch = t.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.speaker.toLowerCase().includes(searchQuery.toLowerCase());
@@ -57,17 +69,14 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
     return matchSearch && matchSpeaker;
   });
 
-  // Unique speakers list
   const uniqueSpeakers = Array.from(new Set(transcripts.map((t) => t.speaker)));
 
-  // Auto-scroll effect
   useEffect(() => {
     if (autoScroll && scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [transcripts, interimText, autoScroll]);
 
-  // Handle user manual scroll
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
@@ -85,248 +94,252 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
   const getLanguageBadge = (lang: 'id' | 'en' | 'mixed') => {
     switch (lang) {
       case 'id':
-        return <Badge variant="neutral" size="sm">ID (Bahasa)</Badge>;
+        return <Badge variant="neutral" size="sm" icon="translate">ID</Badge>;
       case 'en':
-        return <Badge variant="neutral" size="sm">EN (English)</Badge>;
+        return <Badge variant="neutral" size="sm" icon="translate">EN</Badge>;
       case 'mixed':
-        return <Badge variant="cyan" size="sm">Bilingual / Mixed</Badge>;
+        return <Badge variant="cyan" size="sm" icon="translate">MIX</Badge>;
       default:
         return <Badge variant="neutral" size="sm">ID</Badge>;
     }
   };
 
   return (
-    <div id="live-transcriber-section" className="bg-[#141E33] border border-[#233863] rounded-2xl shadow-lui-card backdrop-blur-xl flex flex-col h-[540px] scroll-mt-20">
-      {/* 1. Transcriber Top Bar */}
-      <div className="p-3.5 sm:p-4 border-b border-[#233863] flex flex-wrap items-center justify-between gap-3 bg-[#0B1220]/90 rounded-t-2xl">
+    <div id="live-transcriber-section" className="glass-card-strong flex flex-col h-[540px] scroll-mt-20 overflow-hidden">
+      {/* 1. Top Bar */}
+      <div className="p-3.5 sm:p-4 border-b border-[#233863]/60 flex flex-wrap items-center justify-between gap-3 bg-[#0B1220]/80 backdrop-blur-xl rounded-t-2xl">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-[#233863] border border-[#3A4E7A] rounded-xl text-[#3DD6E8] shadow-md flex-shrink-0">
-            <Sparkles className="w-4 h-4 text-[#3DD6E8]" />
+          <div className="p-2 bg-gradient-to-br from-[#233863] to-[#2D4A7A] border border-[#3A4E7A]/40 rounded-xl shadow-md flex-shrink-0">
+            <MaterialIcon icon="auto_awesome" size="md" className="text-[#3DD6E8]" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-xs font-extrabold text-white uppercase tracking-wider">
-                Live Transcriber Panel
+              <h3 className="text-xs font-extrabold text-white uppercase tracking-wider font-display">
+                Live Transcriber
               </h3>
               <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-[#141E33] text-[10px] text-[#3DD6E8] font-mono font-bold border border-[#233863]">
-                Deepgram Nova-2 (Live Diarization)
+                Deepgram Nova-2
               </span>
               <span className="sm:hidden px-2 py-0.5 rounded-full bg-[#141E33] text-[9px] text-[#3DD6E8] font-mono font-bold border border-[#233863]">
-                Nova-2 STT
+                Nova-2
               </span>
             </div>
-            <p className="text-[11px] text-[#B8BFC9] flex items-center gap-1.5 mt-0.5 font-medium">
-              <Globe2 className="w-3 h-3 text-[#3DD6E8] flex-shrink-0" />
-              <span className="truncate">Deteksi Bahasa Otomatis: <strong className="text-white">ID, EN, &amp; Mixed</strong></span>
+            <p className="text-[11px] text-[#8A94A3] flex items-center gap-1.5 mt-0.5 font-medium">
+              <MaterialIcon icon="language" size="xs" className="text-[#3DD6E8]" />
+              <span className="truncate">Deteksi Otomatis: <strong className="text-white">ID, EN, & Mixed</strong></span>
             </p>
           </div>
         </div>
 
-        {/* Filter & Controls */}
+        {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end pt-1 sm:pt-0">
-          {/* Search bar */}
+          {/* Search */}
           <div className="relative flex-1 sm:flex-initial">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari transkrip..."
-              className="w-full bg-[#0B1220] border border-[#233863] rounded-xl pl-7 pr-3 py-1.5 text-xs text-white placeholder:text-[#B8BFC9]/60 focus:outline-none focus:ring-2 focus:ring-[#3DD6E8] sm:w-44 font-normal shadow-inner"
+              className="w-full bg-[#0B1220] border border-[#233863] rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-[#6B7585] focus:outline-none focus:ring-2 focus:ring-[#3DD6E8]/50 sm:w-44 font-normal shadow-lui-inner transition-all duration-200"
             />
-            <Search className="w-3.5 h-3.5 text-[#B8BFC9] absolute left-2 top-2.5 pointer-events-none" />
+            <MaterialIcon icon="search" size="sm" className="absolute left-2 top-2 pointer-events-none text-[#6B7585]" />
           </div>
 
-          {/* Speaker Filter Dropdown */}
+          {/* Speaker Filter */}
           <div className="relative">
             <select
               value={selectedSpeaker}
               onChange={(e) => setSelectedSpeaker(e.target.value)}
-              className="bg-[#0B1220] border border-[#233863] rounded-xl pl-7 pr-4 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-[#3DD6E8] appearance-none font-bold cursor-pointer shadow-inner"
+              className="bg-[#0B1220] border border-[#233863] rounded-xl pl-8 pr-4 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-[#3DD6E8]/50 appearance-none font-bold cursor-pointer shadow-lui-inner transition-all duration-200"
             >
-              <option value="ALL" className="bg-[#0B1220] text-white">Semua Pembicara ({uniqueSpeakers.length})</option>
+              <option value="ALL" className="bg-[#0B1220] text-white">Semua ({uniqueSpeakers.length})</option>
               {uniqueSpeakers.map((spk) => (
                 <option key={spk} value={spk} className="bg-[#0B1220] text-white">{spk}</option>
               ))}
             </select>
-            <Users className="w-3.5 h-3.5 text-[#B8BFC9] absolute left-2 top-2.5 pointer-events-none" />
+            <MaterialIcon icon="group" size="sm" className="absolute left-2 top-2 pointer-events-none text-[#6B7585]" />
           </div>
 
-          {/* Auto-scroll toggle */}
+          {/* Auto-scroll */}
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors shadow-sm ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${
               autoScroll
-                ? 'bg-[#233863] border-[#3DD6E8]/60 text-[#3DD6E8]'
-                : 'bg-[#0B1220] border-[#233863] text-[#B8BFC9] hover:text-white hover:bg-[#141E33]'
+                ? 'bg-[#3DD6E8]/10 border-[#3DD6E8]/30 text-[#3DD6E8]'
+                : 'bg-[#0B1220] border-[#233863] text-[#6B7585] hover:text-white hover:border-[#3A4E7A]'
             }`}
-            title="Kunci scroll ke transkrip terbaru"
+            title="Auto-scroll ke transkrip terbaru"
           >
-            <ArrowDown className={`w-3.5 h-3.5 ${autoScroll ? 'text-[#3DD6E8]' : ''}`} />
-            <span className="text-[11px] hidden sm:inline">Auto-scroll</span>
+            <MaterialIcon icon="arrow_downward" size="sm" filled={autoScroll} />
+            <span className="text-[11px] hidden sm:inline">Auto</span>
           </button>
 
-          {/* Clear Transcripts Button */}
+          {/* Clear */}
           {confirmClear ? (
-            <div className="flex items-center gap-1.5 bg-[#7A2530]/40 border border-[#7A2530] rounded-xl px-2.5 py-1 text-xs animate-in fade-in zoom-in-95 duration-150 shadow-md">
-              <span className="text-[11px] text-[#FF8E9D] font-extrabold">Hapus semua?</span>
-              <button
-                onClick={handleClear}
-                className="px-2 py-0.5 bg-[#7A2530] hover:bg-[#9E2F3E] text-white rounded-lg text-[10px] font-extrabold shadow-sm transition-colors"
-              >
-                Ya
-              </button>
-              <button
-                onClick={() => setConfirmClear(false)}
-                className="px-2 py-0.5 bg-[#0B1220] hover:bg-[#141E33] text-[#B8BFC9] rounded-lg text-[10px] transition-colors"
-              >
-                Batal
-              </button>
+            <div className="flex items-center gap-1.5 bg-[#7A2530]/20 border border-[#7A2530]/50 rounded-xl px-2.5 py-1 text-xs animate-scale-in shadow-md">
+              <span className="text-[11px] text-[#FF8E9D] font-extrabold">Hapus?</span>
+              <button onClick={handleClear} className="px-2 py-0.5 bg-[#7A2530] hover:bg-[#992E3C] text-white rounded-lg text-[10px] font-extrabold shadow-sm transition-colors">Ya</button>
+              <button onClick={() => setConfirmClear(false)} className="px-2 py-0.5 bg-[#0B1220] hover:bg-[#141E33] text-[#B8BFC9] rounded-lg text-[10px] transition-colors">Batal</button>
             </div>
           ) : (
             <button
               onClick={() => setConfirmClear(true)}
               disabled={transcripts.length === 0 && !interimText}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors shadow-sm bg-[#0B1220] border-[#233863] text-[#B8BFC9] hover:text-[#FF8E9D] hover:border-[#7A2530] hover:bg-[#7A2530]/20 disabled:opacity-40 disabled:pointer-events-none group"
-              title="Bersihkan teks transkrip agar tidak menumpuk (Ctrl + Shift + X)"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm bg-[#0B1220] border-[#233863] text-[#6B7585] hover:text-[#FF8E9D] hover:border-[#7A2530]/50 hover:bg-[#7A2530]/10 disabled:opacity-40 disabled:pointer-events-none group"
+              title="Bersihkan transkrip (Ctrl + Shift + X)"
             >
-              <Trash2 className="w-3.5 h-3.5 text-[#B8BFC9] group-hover:text-[#FF8E9D] transition-colors" />
-              <span className="text-[11px] hidden sm:inline">Bersihkan</span>
+              <MaterialIcon icon="delete_sweep" size="sm" className="group-hover:text-[#FF8E9D] transition-colors" />
+              <span className="text-[11px] hidden sm:inline">Clear</span>
             </button>
           )}
         </div>
       </div>
 
-
-      {/* 2. Transcript Content Stream Viewport */}
+      {/* 2. Transcript Content */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 p-5 overflow-y-auto space-y-3.5 font-sans divide-y divide-[#233863] bg-[#0B1220]/60"
+        className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-1 font-sans bg-[#0B1220]/40"
       >
         {filteredTranscripts.length === 0 && !interimText && (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             {isRecording ? (
-              <div className="space-y-3">
-                <div className="relative flex items-center justify-center mx-auto w-14 h-14">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7A2530] opacity-35"></span>
-                  <div className="w-12 h-12 rounded-full bg-[#7A2530]/40 border border-[#7A2530] flex items-center justify-center text-[#FF8E9D] shadow-md">
-                    <Sparkles className="w-6 h-6 animate-pulse" />
+              <div className="space-y-3 animate-fade-in">
+                <div className="relative flex items-center justify-center mx-auto w-16 h-16">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7A2530] opacity-20"></span>
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#7A2530]/40 to-[#992E3C]/20 border border-[#7A2530]/40 flex items-center justify-center shadow-lg">
+                    <MaterialIcon icon="auto_awesome" size="xl" className="text-[#FF8E9D] animate-pulse" />
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-extrabold text-[#FF8E9D] uppercase tracking-wider">
-                    ● Live Transcribing Aktif
+                  <p className="text-xs font-extrabold text-[#FF8E9D] uppercase tracking-wider font-display">
+                    Live Transcribing Aktif
                   </p>
-                  <p className="text-[11px] text-[#B8BFC9] max-w-sm mt-1">
-                    Bot sedang mendengarkan audio meeting secara real-time. Bicaralah di room meeting, teks akan otomatis mengalir di sini.
+                  <p className="text-[11px] text-[#8A94A3] max-w-sm mt-1.5 leading-relaxed">
+                    Bot mendengarkan audio meeting real-time. Bicaralah di room meeting, teks otomatis mengalir di sini.
                   </p>
                 </div>
               </div>
             ) : (
-              <div>
-                <div className="w-12 h-12 rounded-full bg-[#141E33] border border-[#233863] flex items-center justify-center text-[#B8BFC9] mb-2 mx-auto">
-                  <FileText className="w-6 h-6" />
+              <div className="animate-fade-in">
+                <div className="w-14 h-14 rounded-2xl bg-[#141E33] border border-[#233863] flex items-center justify-center text-[#6B7585] mb-3 mx-auto">
+                  <MaterialIcon icon="description" size="xl" />
                 </div>
-                <p className="text-xs font-bold text-white">Belum ada transkrip yang tercatat</p>
-                <p className="text-[11px] text-[#B8BFC9] max-w-xs mt-1">
-                  Klik tombol <strong className="text-[#FF8E9D]">2. RECORD</strong> di atas untuk memulai transkripsi audio meeting secara real-time.
+                <p className="text-xs font-bold text-white font-display">Belum ada transkrip</p>
+                <p className="text-[11px] text-[#8A94A3] max-w-xs mt-1.5 leading-relaxed">
+                  Klik tombol <strong className="text-[#FF8E9D]">RECORD</strong> untuk memulai transkripsi audio real-time.
                 </p>
               </div>
             )}
           </div>
         )}
 
-        {filteredTranscripts.map((item) => (
-          <div key={item.id} className="pt-3.5 first:pt-0 group hover:bg-[#141E33]/70 p-2.5 rounded-xl transition-colors">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono font-bold text-[#B8BFC9] bg-[#0B1220] px-2 py-0.5 rounded border border-[#233863]">
-                  [{item.timestamp}]
-                </span>
-                <span className="text-xs font-extrabold text-[#3DD6E8]">
-                  {item.speaker}
-                </span>
-              </div>
-              <div>{getLanguageBadge(item.language)}</div>
-            </div>
-            <p className="text-xs text-white leading-relaxed pl-1 select-text font-normal">
-              {item.text}
-            </p>
-          </div>
-        ))}
+        {filteredTranscripts.map((item, idx) => {
+          const color = getSpeakerColor(item.speaker);
+          const initials = getSpeakerInitials(item.speaker);
 
-        {/* Interim / Live Typing Output (Sub-300ms stream from Deepgram) */}
-        {isRecording && interimText && (
-          <div className="pt-3 border-t border-[#3DD6E8]/40 bg-[#141E33] p-3 rounded-xl border border-[#3DD6E8]/60 shadow-md animate-in fade-in duration-150">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3DD6E8] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#3DD6E8]"></span>
-                </span>
-                <span className="text-xs font-bold text-[#3DD6E8]">
-                  {interimSpeaker} (Sedang berbicara...)
-                </span>
+          return (
+            <div
+              key={item.id}
+              className="group hover:bg-[#141E33]/50 p-2.5 sm:p-3 rounded-xl transition-all duration-150"
+              style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+            >
+              <div className="flex gap-2.5">
+                {/* Speaker Avatar */}
+                <div className={`speaker-avatar ${color.bg} ${color.text} border ${color.border} mt-0.5`}>
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-extrabold ${color.text}`}>{item.speaker}</span>
+                      <span className="text-[10px] font-mono text-[#6B7585]">{item.timestamp}</span>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">{getLanguageBadge(item.language)}</div>
+                  </div>
+                  <p className="text-xs text-[#E0E4EA] leading-relaxed select-text font-normal">
+                    {item.text}
+                  </p>
+                </div>
               </div>
-              <div>{getLanguageBadge(interimLanguage)}</div>
             </div>
-            <p className="text-xs text-white italic leading-relaxed pl-1 flex items-center gap-1 font-medium">
-              <span>{interimText}</span>
-              <span className="inline-block w-1.5 h-3.5 bg-[#3DD6E8] animate-pulse ml-0.5" />
-            </p>
+          );
+        })}
+
+        {/* Interim Live Typing */}
+        {isRecording && interimText && (
+          <div className="bg-[#141E33]/80 p-3 rounded-xl border border-[#3DD6E8]/20 shadow-md animate-fade-in">
+            <div className="flex gap-2.5">
+              <div className={`speaker-avatar ${getSpeakerColor(interimSpeaker).bg} ${getSpeakerColor(interimSpeaker).text} border ${getSpeakerColor(interimSpeaker).border} mt-0.5`}>
+                {getSpeakerInitials(interimSpeaker)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3DD6E8] opacity-60"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#3DD6E8]"></span>
+                  </span>
+                  <span className="text-xs font-bold text-[#3DD6E8]">{interimSpeaker}</span>
+                  <span className="text-[10px] text-[#6B7585] italic">sedang berbicara...</span>
+                </div>
+                <p className="text-xs text-white/80 italic leading-relaxed flex items-center gap-0.5 font-medium">
+                  <span>{interimText}</span>
+                  <span className="neon-cursor ml-0.5" />
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* 3. Bottom Action Bar: Ekstraksi Cepat (.DOCX & .TXT) & Clear Action */}
-      <div className="p-3.5 border-t border-[#233863] bg-[#0B1220]/90 rounded-b-2xl flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 text-xs text-[#B8BFC9] font-mono">
+      {/* 3. Bottom Action Bar */}
+      <div className="p-3.5 border-t border-[#233863]/60 bg-[#0B1220]/80 backdrop-blur-xl rounded-b-2xl flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 text-xs text-[#8A94A3] font-mono">
           <div className="flex items-center gap-2">
-            <span>Total: <strong className="text-white">{transcripts.length}</strong> entri</span>
-            <span>•</span>
-            <span>Kata: <strong className="text-[#3DD6E8] font-bold">{transcripts.reduce((acc, curr) => acc + curr.text.split(/\s+/).length, 0)}</strong></span>
+            <MaterialIcon icon="format_list_numbered" size="xs" className="text-[#6B7585]" />
+            <span><strong className="text-white">{transcripts.length}</strong> entri</span>
+            <span className="text-[#233863]">•</span>
+            <MaterialIcon icon="text_fields" size="xs" className="text-[#6B7585]" />
+            <span><strong className="text-[#3DD6E8]">{transcripts.reduce((acc, curr) => acc + curr.text.split(/\s+/).length, 0)}</strong> kata</span>
           </div>
 
           {transcripts.length > 0 && (
             <button
               onClick={() => setConfirmClear(true)}
-              className="text-[11px] text-[#B8BFC9] hover:text-[#FF8E9D] flex items-center gap-1 transition-colors underline decoration-dotted font-sans"
-              title="Bersihkan daftar transkrip ini"
+              className="text-[11px] text-[#6B7585] hover:text-[#FF8E9D] flex items-center gap-1 transition-colors font-sans"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Bersihkan ({transcripts.length})</span>
+              <MaterialIcon icon="restart_alt" size="xs" />
+              <span>Reset ({transcripts.length})</span>
             </button>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Export TXT */}
           <Button
             variant="outline"
             size="sm"
             onClick={onExportTxt}
             disabled={transcripts.length === 0}
-            icon={<FileText className="w-3.5 h-3.5 text-[#B8BFC9]" />}
-            title="Export Transkrip ke Format .TXT (Ctrl + Shift + T)"
+            icon={<MaterialIcon icon="description" size="sm" className="text-[#8A94A3]" />}
+            title="Export .TXT (Ctrl + Shift + T)"
           >
-            <span className="flex items-center gap-1">
-              <span>Export .TXT</span>
-              <kbd className="hidden sm:inline-block text-[9px] font-mono text-[#B8BFC9]">Ctrl+Shift+T</kbd>
+            <span className="flex items-center gap-1.5">
+              <span>.TXT</span>
+              <kbd className="hidden sm:inline-block keycap text-[9px] !py-0 !px-1 !min-w-0">⌃⇧T</kbd>
             </span>
           </Button>
 
-          {/* Export DOCX (Navy Terang #3A4E7A) */}
           <Button
             variant="navy"
             size="sm"
             onClick={onExportDocx}
             disabled={transcripts.length === 0}
-            icon={<FileCode className="w-3.5 h-3.5 text-[#3DD6E8]" />}
-            title="Export Transkrip ke Microsoft Word .DOCX (Ctrl + Shift + D)"
+            icon={<MaterialIcon icon="code" size="sm" className="text-[#3DD6E8]" />}
+            title="Export .DOCX (Ctrl + Shift + D)"
           >
-            <span className="flex items-center gap-1">
-              <span>Export .DOCX (Word)</span>
-              <kbd className="hidden sm:inline-block text-[9px] font-mono text-[#3DD6E8]">Ctrl+Shift+D</kbd>
+            <span className="flex items-center gap-1.5">
+              <span>.DOCX</span>
+              <kbd className="hidden sm:inline-block keycap text-[9px] !py-0 !px-1 !min-w-0">⌃⇧D</kbd>
             </span>
           </Button>
         </div>
@@ -334,7 +347,3 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
     </div>
   );
 };
-
-
-
-

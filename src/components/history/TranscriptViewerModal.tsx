@@ -1,11 +1,33 @@
 import React, { useState } from 'react';
-import { X, FileText, Search, Users, Clock, FileCode } from 'lucide-react';
+import { MaterialIcon } from '../common/MaterialIcon';
 import { MeetingHistory } from '../../types/meeting';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { exportToDocx } from '../../services/exportDocx';
 import { exportToTxt } from '../../services/exportTxt';
 import { TranscriptItem } from '../../types/transcript';
+
+// Speaker color palette (same as LiveTranscriber)
+const SPEAKER_COLORS = [
+  { bg: 'bg-[#3DD6E8]/20', text: 'text-[#3DD6E8]', border: 'border-[#3DD6E8]/30' },
+  { bg: 'bg-[#F5B400]/20', text: 'text-[#F5B400]', border: 'border-[#F5B400]/30' },
+  { bg: 'bg-[#FF8E9D]/20', text: 'text-[#FF8E9D]', border: 'border-[#FF8E9D]/30' },
+  { bg: 'bg-[#7EEAF5]/20', text: 'text-[#7EEAF5]', border: 'border-[#7EEAF5]/30' },
+  { bg: 'bg-[#D9A441]/20', text: 'text-[#D9A441]', border: 'border-[#D9A441]/30' },
+  { bg: 'bg-[#B8BFC9]/20', text: 'text-[#B8BFC9]', border: 'border-[#B8BFC9]/30' },
+];
+
+const getSpeakerColor = (speaker: string) => {
+  let hash = 0;
+  for (let i = 0; i < speaker.length; i++) hash = speaker.charCodeAt(i) + ((hash << 5) - hash);
+  return SPEAKER_COLORS[Math.abs(hash) % SPEAKER_COLORS.length];
+};
+
+const getSpeakerInitials = (speaker: string) => {
+  const parts = speaker.split(' ');
+  if (parts.length >= 2) return parts[0][0] + parts[1][0];
+  return speaker.substring(0, 2);
+};
 
 interface TranscriptViewerModalProps {
   historyItem: MeetingHistory | null;
@@ -45,26 +67,14 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
 
   const handleExportDocx = () => {
     exportToDocx(
-      {
-        title: historyItem.title,
-        platform: historyItem.platform,
-        url: historyItem.url,
-        elapsedSeconds: historyItem.durationSeconds,
-        vpnIp: '10.24.0.12'
-      },
+      { title: historyItem.title, platform: historyItem.platform, url: historyItem.url, elapsedSeconds: historyItem.durationSeconds, vpnIp: '10.24.0.12' },
       transcripts
     );
   };
 
   const handleExportTxt = () => {
     exportToTxt(
-      {
-        title: historyItem.title,
-        platform: historyItem.platform,
-        url: historyItem.url,
-        elapsedSeconds: historyItem.durationSeconds,
-        vpnIp: '10.24.0.12'
-      },
+      { title: historyItem.title, platform: historyItem.platform, url: historyItem.url, elapsedSeconds: historyItem.durationSeconds, vpnIp: '10.24.0.12' },
       transcripts
     );
   };
@@ -74,57 +84,67 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
   const durationStr = `${mins}m ${secs}s`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl max-h-[90vh] bg-[#141E33] border border-[#233863] rounded-2xl shadow-2xl flex flex-col relative text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-fade-in">
+      <div className="w-full max-w-3xl max-h-[90vh] glass-card-strong shadow-2xl flex flex-col relative text-white animate-scale-in">
         {/* Header */}
-        <div className="p-5 border-b border-[#233863] flex items-start justify-between gap-3 bg-[#0B1220]/90 rounded-t-2xl">
+        <div className="p-5 border-b border-[#233863]/60 flex items-start justify-between gap-3 bg-[#0B1220]/80 backdrop-blur-xl rounded-t-2xl">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base font-extrabold text-white">
-                {historyItem.title}
-              </h2>
-              <Badge variant="cyan" size="sm">Deepgram Nova-2</Badge>
+              <h2 className="text-base font-extrabold text-white font-display">{historyItem.title}</h2>
+              <Badge variant="cyan" size="sm" icon="auto_awesome">Nova-2</Badge>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-[#B8BFC9] mt-1.5 font-mono">
+            <div className="flex items-center gap-3 text-xs text-[#8A94A3] mt-1.5 font-mono">
               <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-[#3DD6E8]" />
+                <MaterialIcon icon="timer" size="xs" className="text-[#3DD6E8]" />
                 {durationStr}
               </span>
-              <span>•</span>
+              <span className="text-[#233863]">•</span>
               <span>{new Date(historyItem.date).toLocaleDateString('id-ID', { dateStyle: 'medium' })}</span>
-              <span>•</span>
+              <span className="text-[#233863]">•</span>
               <span className="text-white font-bold">{historyItem.totalWords} Kata</span>
-              <span>•</span>
+              <span className="text-[#233863]">•</span>
               <span className="text-[#3DD6E8]">{historyItem.speakersCount} Pembicara</span>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="text-[#B8BFC9] hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            className="text-[#6B7585] hover:text-white p-1.5 rounded-xl hover:bg-white/5 transition-all duration-200 active:scale-90"
           >
-            <X className="w-5 h-5" />
+            <MaterialIcon icon="close" size="md" />
           </button>
         </div>
 
-        {/* Stats summary banner */}
+        {/* Stats Banner */}
         <div className="grid grid-cols-4 gap-2 m-4 p-3 bg-[#0B1220] rounded-xl border border-[#233863] text-center text-xs">
-          <div>
-            <span className="text-[#B8BFC9] block text-[10px] uppercase font-semibold">DURASI</span>
-            <strong className="text-white font-mono font-bold">{durationStr}</strong>
+          <div className="group">
+            <span className="text-[#6B7585] block text-[10px] uppercase font-semibold">Durasi</span>
+            <div className="flex items-center justify-center gap-1 mt-0.5">
+              <MaterialIcon icon="timer" size="xs" className="text-[#3DD6E8] group-hover:scale-110 transition-transform" />
+              <strong className="text-white font-mono font-bold">{durationStr}</strong>
+            </div>
           </div>
-          <div>
-            <span className="text-[#B8BFC9] block text-[10px] uppercase font-semibold">TOTAL KATA</span>
-            <strong className="text-[#F5B400] font-mono font-bold">{historyItem.totalWords}</strong>
+          <div className="group">
+            <span className="text-[#6B7585] block text-[10px] uppercase font-semibold">Total Kata</span>
+            <div className="flex items-center justify-center gap-1 mt-0.5">
+              <MaterialIcon icon="text_fields" size="xs" className="text-[#F5B400] group-hover:scale-110 transition-transform" />
+              <strong className="text-gradient-gold font-mono font-bold">{historyItem.totalWords}</strong>
+            </div>
           </div>
-          <div>
-            <span className="text-[#B8BFC9] block text-[10px] uppercase font-semibold">PEMBICARA</span>
-            <strong className="text-white font-mono font-bold">{historyItem.speakersCount} Orang</strong>
+          <div className="group">
+            <span className="text-[#6B7585] block text-[10px] uppercase font-semibold">Pembicara</span>
+            <div className="flex items-center justify-center gap-1 mt-0.5">
+              <MaterialIcon icon="group" size="xs" className="text-[#3DD6E8] group-hover:scale-110 transition-transform" />
+              <strong className="text-white font-mono font-bold">{historyItem.speakersCount} Org</strong>
+            </div>
           </div>
-          <div>
-            <span className="text-[#B8BFC9] block text-[10px] uppercase font-semibold">ENGINE</span>
-            <strong className="text-[#3DD6E8] font-mono font-bold">Nova-2 STT</strong>
+          <div className="group">
+            <span className="text-[#6B7585] block text-[10px] uppercase font-semibold">Engine</span>
+            <div className="flex items-center justify-center gap-1 mt-0.5">
+              <MaterialIcon icon="auto_awesome" size="xs" className="text-[#3DD6E8] group-hover:scale-110 transition-transform" />
+              <strong className="text-[#3DD6E8] font-mono font-bold">Nova-2</strong>
+            </div>
           </div>
         </div>
 
@@ -136,60 +156,66 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari dalam transkrip..."
-              className="w-full bg-[#0B1220] border border-[#233863] rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-[#B8BFC9]/60 focus:outline-none focus:ring-2 focus:ring-[#3DD6E8] font-normal shadow-inner"
+              className="w-full bg-[#0B1220] border border-[#233863] rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-[#6B7585] focus:outline-none focus:ring-2 focus:ring-[#3DD6E8]/50 font-normal shadow-lui-inner transition-all duration-200"
             />
-            <Search className="w-3.5 h-3.5 text-[#B8BFC9] absolute left-2.5 top-2.5 pointer-events-none" />
+            <MaterialIcon icon="search" size="sm" className="absolute left-2.5 top-2 pointer-events-none text-[#6B7585]" />
           </div>
 
           <div className="relative">
             <select
               value={speakerFilter}
               onChange={(e) => setSpeakerFilter(e.target.value)}
-              className="bg-[#0B1220] border border-[#233863] rounded-xl pl-7 pr-4 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-[#3DD6E8] appearance-none font-bold cursor-pointer shadow-inner"
+              className="bg-[#0B1220] border border-[#233863] rounded-xl pl-8 pr-4 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-[#3DD6E8]/50 appearance-none font-bold cursor-pointer shadow-lui-inner transition-all duration-200"
             >
-              <option value="ALL" className="bg-[#0B1220] text-white">Semua Pembicara ({uniqueSpeakers.length})</option>
+              <option value="ALL" className="bg-[#0B1220] text-white">Semua ({uniqueSpeakers.length})</option>
               {uniqueSpeakers.map((spk) => (
                 <option key={spk} value={spk} className="bg-[#0B1220] text-white">{spk}</option>
               ))}
             </select>
-            <Users className="w-3.5 h-3.5 text-[#B8BFC9] absolute left-2 top-2.5 pointer-events-none" />
+            <MaterialIcon icon="group" size="sm" className="absolute left-2 top-2 pointer-events-none text-[#6B7585]" />
           </div>
         </div>
 
         {/* Transcripts List */}
-        <div className="flex-1 p-5 overflow-y-auto space-y-3 divide-y divide-[#233863] bg-[#0B1220]/60 mx-4 mb-4 rounded-xl border border-[#233863]">
+        <div className="flex-1 p-4 overflow-y-auto space-y-1 bg-[#0B1220]/40 mx-4 mb-4 rounded-xl border border-[#233863]">
           {filteredTranscripts.length === 0 ? (
-            <div className="text-center py-12 text-xs text-[#B8BFC9]">
-              Tidak ada transkrip yang cocok dengan filter pencarian.
+            <div className="text-center py-12 text-xs text-[#6B7585] flex flex-col items-center gap-2">
+              <MaterialIcon icon="search_off" size="xl" className="text-[#6B7585]" />
+              <span>Tidak ada transkrip yang cocok dengan filter.</span>
             </div>
           ) : (
-            filteredTranscripts.map((t) => (
-              <div key={t.id} className="pt-3 first:pt-0 group hover:bg-[#141E33]/70 p-2.5 rounded-xl transition-colors">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono font-bold text-[#B8BFC9] bg-[#0B1220] px-2 py-0.5 rounded border border-[#233863]">
-                      [{t.timestamp}]
-                    </span>
-                    <span className="text-xs font-extrabold text-[#3DD6E8]">
-                      {t.speaker}
-                    </span>
+            filteredTranscripts.map((t) => {
+              const color = getSpeakerColor(t.speaker);
+              const initials = getSpeakerInitials(t.speaker);
+
+              return (
+                <div key={t.id} className="group hover:bg-[#141E33]/50 p-2.5 rounded-xl transition-all duration-150">
+                  <div className="flex gap-2.5">
+                    <div className={`speaker-avatar ${color.bg} ${color.text} border ${color.border} mt-0.5`}>
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-extrabold ${color.text}`}>{t.speaker}</span>
+                          <span className="text-[10px] font-mono text-[#6B7585]">{t.timestamp}</span>
+                        </div>
+                        <Badge variant="neutral" size="sm">{t.language?.toUpperCase() || 'ID'}</Badge>
+                      </div>
+                      <p className="text-xs text-[#E0E4EA] leading-relaxed select-text font-normal">{t.text}</p>
+                    </div>
                   </div>
-                  <Badge variant="neutral" size="sm">
-                    {t.language?.toUpperCase() || 'ID'}
-                  </Badge>
                 </div>
-                <p className="text-xs text-white leading-relaxed pl-1 select-text font-normal">
-                  {t.text}
-                </p>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 border-t border-[#233863] bg-[#0B1220]/90 rounded-b-2xl flex items-center justify-between gap-3">
-          <div className="text-xs text-[#B8BFC9] font-mono">
-            Menampilkan <strong className="text-white">{filteredTranscripts.length}</strong> dari {transcripts.length} baris
+        {/* Footer */}
+        <div className="p-4 border-t border-[#233863]/60 bg-[#0B1220]/80 backdrop-blur-xl rounded-b-2xl flex items-center justify-between gap-3">
+          <div className="text-xs text-[#8A94A3] font-mono flex items-center gap-1.5">
+            <MaterialIcon icon="format_list_numbered" size="xs" className="text-[#6B7585]" />
+            <strong className="text-white">{filteredTranscripts.length}</strong> / {transcripts.length} baris
           </div>
 
           <div className="flex items-center gap-2">
@@ -197,17 +223,17 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
               variant="outline"
               size="sm"
               onClick={handleExportTxt}
-              icon={<FileText className="w-3.5 h-3.5 text-[#B8BFC9]" />}
+              icon={<MaterialIcon icon="description" size="sm" className="text-[#8A94A3]" />}
             >
-              Export .TXT
+              .TXT
             </Button>
             <Button
               variant="navy"
               size="sm"
               onClick={handleExportDocx}
-              icon={<FileCode className="w-3.5 h-3.5 text-[#3DD6E8]" />}
+              icon={<MaterialIcon icon="code" size="sm" className="text-[#3DD6E8]" />}
             >
-              Export .DOCX (Word)
+              .DOCX (Word)
             </Button>
           </div>
         </div>
