@@ -157,7 +157,7 @@ Sebelum memulai, pastikan perangkat Anda telah terpasang:
 
 ### 1. Clone atau Buka Folder Proyek
 ```bash
-cd c:\10123121\ProjekAIBaru
+cd (File Telah Di Download)
 ```
 
 ### 2. Instal Seluruh Dependensi Proyek
