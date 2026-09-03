@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { BotState, MeetingPlatform, ScheduledMeeting, MeetingHistory } from '../types/meeting';
 import { TranscriptItem } from '../types/transcript';
+import { TranscribeMode } from '../components/live/TranscribeModePicker';
 import { storageService } from '../services/storageService';
 import { exportToDocx } from '../services/exportDocx';
 import { exportToTxt } from '../services/exportTxt';
 import { initSocket, getSocket, isSocketConnected } from '../services/socketClient';
+import { createMeetingHistoryItem, filterAndDeduplicateParticipants } from '../utils/historyHelper';
 
-export function useMeetingBot() {
+export function useMeetingBot(userId?: string) {
   const [meetingUrl, setMeetingUrl] = useState('');
   const [meetingTitle, setMeetingTitle] = useState('');
   const [platform, setPlatform] = useState<MeetingPlatform>('');
@@ -15,29 +17,62 @@ export function useMeetingBot() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioActive, setAudioActive] = useState(false);
   const [vpnConnected] = useState(true);
-  const [vpnIp] = useState('10.24.0.12 (VPC Private)');
+  const [vpnIp] = useState('10.24.0.12');
+  const [meetingStartTime, setMeetingStartTime] = useState<string>('');
+  const [participants, setParticipants] = useState<string[]>([]);
 
   const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [interimText, setInterimText] = useState('');
   const [interimSpeaker, setInterimSpeaker] = useState('Speaker 1');
   const [interimLanguage, setInterimLanguage] = useState<'id' | 'en' | 'mixed'>('id');
 
-
   const [schedules, setSchedules] = useState<ScheduledMeeting[]>([]);
   const [history, setHistory] = useState<MeetingHistory[]>([]);
   const [isClosureOpen, setIsClosureOpen] = useState(false);
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
+  const [transcribeMode, setTranscribeMode] = useState<TranscribeMode | null>(null);
+  const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ step: number; message: string }>({ step: 1, message: '' });
   const timerRef = useRef<number | null>(null);
   const autoRecordOnStandbyRef = useRef<boolean>(false);
   const activeScheduleIdRef = useRef<string | null>(null);
+  const transcribeModeRef = useRef<TranscribeMode | null>(null);
+  const fallbackTranscriptsRef = useRef<TranscriptItem[]>([]);
 
-  // Inisialisasi Socket & Storage
   useEffect(() => {
-    setSchedules(storageService.getSchedules());
-    setHistory(storageService.getHistory());
+    transcribeModeRef.current = transcribeMode;
+  }, [transcribeMode]);
+
+  // Inisialisasi Socket & Storage (MongoDB) setelah user login
+  useEffect(() => {
+    if (!userId) return;
+
+    // Ambil data awal dari server MongoDB
+    storageService.fetchSchedules().then((schs) => setSchedules(schs));
+    storageService.fetchHistory().then((hists) => setHistory(hists));
 
     initSocket(
       (newTranscript) => {
+        // Track speaker as participant (filtered)
+        if (newTranscript.speaker) {
+          const cleaned = filterAndDeduplicateParticipants([newTranscript.speaker]);
+          if (cleaned.length > 0) {
+            setParticipants((prev: string[]) => filterAndDeduplicateParticipants([...prev, ...cleaned]));
+          }
+        }
+
+        // Selalu simpan di buffer fallback sebagai jaring pengaman
+        if (newTranscript.isFinal) {
+          if (!fallbackTranscriptsRef.current.some((p: TranscriptItem) => p.id === newTranscript.id)) {
+            fallbackTranscriptsRef.current.push(newTranscript);
+          }
+        }
+
+        // Jika mode background aktif, abaikan live streaming update ke UI
+        if (transcribeModeRef.current === 'background') {
+          return;
+        }
+
         if (!newTranscript.isFinal) {
           // Interim realtime stream
           setInterimText(newTranscript.text);
@@ -45,9 +80,9 @@ export function useMeetingBot() {
           setInterimLanguage(newTranscript.language || 'en');
         } else {
           // Final confirmed transcript
-          setTranscripts((prev) => {
+          setTranscripts((prev: TranscriptItem[]) => {
             // Hindari duplikasi jika id sudah ada
-            if (prev.some((p) => p.id === newTranscript.id)) return prev;
+            if (prev.some((p: TranscriptItem) => p.id === newTranscript.id)) return prev;
             return [...prev, newTranscript];
           });
           setInterimText('');
@@ -58,9 +93,26 @@ export function useMeetingBot() {
       },
       (active) => {
         setAudioActive(active);
+      },
+      // Batch processing progress callback
+      (step, message) => {
+        setBatchProgress({ step, message });
+      },
+      // Batch result callback
+      (data) => {
+        handleBatchResultRef.current?.(data);
+      },
+      undefined,
+      // Participants update callback
+      (data) => {
+        if (data && Array.isArray(data.participants)) {
+          setParticipants(filterAndDeduplicateParticipants(data.participants));
+        }
       }
     );
-  }, []);
+  }, [userId]);
+
+
 
   // 🕒 AUTO-SCHEDULER ENGINE: Memeriksa jadwal setiap 2 detik & otomatis join ketika waktu tiba
   useEffect(() => {
@@ -119,7 +171,7 @@ export function useMeetingBot() {
   useEffect(() => {
     if (botState === 'RECORDING') {
       timerRef.current = window.setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
+        setElapsedSeconds((prev: number) => prev + 1);
       }, 1000);
     } else {
       if (timerRef.current) {
@@ -150,6 +202,13 @@ export function useMeetingBot() {
   // Aksi: 1. JOIN
   const handleJoin = useCallback(() => {
     if (!meetingUrl) return;
+    setTranscripts([]);
+    setInterimText('');
+    setElapsedSeconds(0);
+    setParticipants([]);
+    const nowIso = new Date().toISOString();
+    setMeetingStartTime(nowIso);
+    fallbackTranscriptsRef.current = [];
     setBotState('JOINING');
 
     // Update matching schedule to IN_PROGRESS
@@ -180,16 +239,24 @@ export function useMeetingBot() {
   // Aksi: 2. RECORD
   const handleRecord = useCallback(() => {
     if (botState !== 'IN_ROOM_STANDBY') return;
+    setElapsedSeconds(0);
+    setTranscripts([]);
+    setInterimText('');
+    if (!meetingStartTime) {
+      setMeetingStartTime(new Date().toISOString());
+    }
+    fallbackTranscriptsRef.current = [];
     setBotState('RECORDING');
 
     const effectiveLanguage = language || 'id';
+    const effectiveMode = transcribeMode || 'live';
 
     const socket = getSocket();
     if (socket && socket.connected) {
-      console.log(`[Frontend] Mengirim sinyal bot_record (Language: ${effectiveLanguage}) ke backend...`);
-      socket.emit('bot_record', { language: effectiveLanguage });
+      console.log(`[Frontend] Mengirim sinyal bot_record (Mode: ${effectiveMode}, Language: ${effectiveLanguage}) ke backend...`);
+      socket.emit('bot_record', { language: effectiveLanguage, mode: effectiveMode });
     }
-  }, [botState, language]);
+  }, [botState, language, transcribeMode, meetingStartTime]);
 
   // Aksi: 3. PAUSE / RESUME
   const handlePauseResume = useCallback(() => {
@@ -213,46 +280,97 @@ export function useMeetingBot() {
     }
   }, [botState]);
 
-  // Aksi: 4. STOP & SAVE
-  const handleStop = useCallback(() => {
-    if (botState !== 'RECORDING' && botState !== 'PAUSED') return;
-    setBotState('IN_ROOM_STANDBY');
+  // Ref untuk batch result handler (agar bisa diakses dari useEffect initSocket)
+  const handleBatchResultRef = useRef<((data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[] }) => void) | null>(null);
 
-    const socket = getSocket();
-    if (socket && socket.connected) {
-      console.log('[Frontend] Mengirim sinyal bot_stop ke backend...');
-      socket.emit('bot_stop');
-    }
+  // Handler batch result
+  const handleBatchResult = useCallback((data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[] }) => {
+    setIsProcessingBatch(false);
+    setInterimText('');
+
+    // Gunakan hasil batch jika ada, otherwise fallback ke safety buffer atau live transcripts
+    const rawTranscripts = (data.success && data.transcripts.length > 0)
+      ? data.transcripts
+      : (fallbackTranscriptsRef.current.length > 0 ? fallbackTranscriptsRef.current : transcripts);
+
+    const verifiedParticipants = data.participants && data.participants.length > 0
+      ? filterAndDeduplicateParticipants(data.participants)
+      : filterAndDeduplicateParticipants(participants);
+
+    setParticipants(verifiedParticipants);
+
+    // Map 'Speaker 0', 'Speaker 1', etc. to actual human participant names
+    const finalTranscripts = rawTranscripts.map((t: TranscriptItem) => {
+      let spk = t.speaker || '';
+      const match = spk.match(/^Speaker\s*(\d+)$/i);
+      if (match && verifiedParticipants.length > 0) {
+        const idx = parseInt(match[1], 10);
+        spk = verifiedParticipants[idx] || verifiedParticipants[idx % verifiedParticipants.length];
+      } else if (spk.toLowerCase() === 'speaker' && verifiedParticipants.length > 0) {
+        spk = verifiedParticipants[0];
+      }
+      return {
+        ...t,
+        speaker: spk,
+      };
+    });
+
+    setTranscripts(finalTranscripts);
 
     // Simpan ke Riwayat
-    const totalWords = transcripts.reduce((acc, curr) => acc + curr.text.split(/\s+/).length, 0);
-    const uniqueSpeakers = Array.from(new Set(transcripts.map((t) => t.speaker))).length;
-
-    const newHistoryItem: MeetingHistory = {
-      id: `hist-${Date.now()}`,
-      title: meetingTitle || 'Sesi Meeting Live',
+    const newHistoryItem = createMeetingHistoryItem({
+      title: meetingTitle,
       platform,
       url: meetingUrl,
-      date: new Date().toISOString(),
-      durationSeconds: elapsedSeconds,
-      totalWords,
-      speakersCount: uniqueSpeakers || 1,
-      languages: ['id', 'en', 'mixed'],
-      transcriptSnippet: transcripts[0]?.text || 'Sesi transkrip meeting tersimpan.',
-      transcripts: transcripts.map((t) => ({
-        id: t.id,
-        speaker: t.speaker,
-        timestamp: t.timestamp,
-        text: t.text,
-        language: t.language
-      }))
-    };
+      date: meetingStartTime || new Date().toISOString(),
+      elapsedSeconds,
+      transcripts: finalTranscripts,
+      participants: verifiedParticipants,
+    });
 
     storageService.saveHistoryItem(newHistoryItem);
     setHistory(storageService.getHistory());
-
+    setBotState('IN_ROOM_STANDBY');
     setIsClosureOpen(true);
-  }, [botState, transcripts, meetingTitle, platform, meetingUrl, elapsedSeconds]);
+  }, [transcripts, meetingTitle, platform, meetingUrl, meetingStartTime, elapsedSeconds, participants]);
+
+
+
+  // Update ref setiap kali handleBatchResult berubah
+  useEffect(() => {
+    handleBatchResultRef.current = handleBatchResult;
+  }, [handleBatchResult]);
+
+  // Aksi: 4. STOP & SAVE (sekarang memicu batch processing)
+  const handleStop = useCallback(() => {
+    if (botState !== 'RECORDING' && botState !== 'PAUSED') return;
+    setIsProcessingBatch(true);
+    setBatchProgress({ step: 1, message: 'Menganalisis gelombang audio & mengenali pembicara...' });
+
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      console.log('[Frontend] Mengirim sinyal bot_stop ke backend (akan memicu batch processing)...');
+      socket.emit('bot_stop', { language });
+    } else {
+      // Standalone fallback: langsung selesai tanpa batch
+      setIsProcessingBatch(false);
+      setBotState('IN_ROOM_STANDBY');
+
+      const newHistoryItem = createMeetingHistoryItem({
+        title: meetingTitle,
+        platform,
+        url: meetingUrl,
+        date: meetingStartTime || new Date().toISOString(),
+        elapsedSeconds,
+        transcripts,
+        participants,
+      });
+
+      storageService.saveHistoryItem(newHistoryItem);
+      setHistory(storageService.getHistory());
+      setIsClosureOpen(true);
+    }
+  }, [botState, transcripts, meetingTitle, platform, meetingUrl, meetingStartTime, elapsedSeconds, language, participants]);
 
   // Aksi: 5. LEAVE ROOM (DISCONNECT)
   const handleLeave = useCallback(() => {
@@ -261,6 +379,11 @@ export function useMeetingBot() {
     setElapsedSeconds(0);
     setAudioActive(false);
     setInterimText('');
+    setTranscripts([]);
+    fallbackTranscriptsRef.current = [];
+    setTranscribeMode(null);
+    setMeetingStartTime('');
+    setParticipants([]);
 
     // Update status jadwal menjadi COMPLETED jika bot keluar dari room
     if (activeScheduleIdRef.current) {
@@ -290,12 +413,15 @@ export function useMeetingBot() {
         title: meetingTitle,
         platform,
         url: meetingUrl,
+        startTime: meetingStartTime,
+        date: meetingStartTime || new Date().toISOString(),
         elapsedSeconds,
-        vpnIp
+        vpnIp,
+        participants,
       },
       transcripts
     );
-  }, [meetingTitle, platform, meetingUrl, elapsedSeconds, vpnIp, transcripts]);
+  }, [meetingTitle, platform, meetingUrl, meetingStartTime, elapsedSeconds, vpnIp, participants, transcripts]);
 
   const handleExportTxt = useCallback(() => {
     exportToTxt(
@@ -303,26 +429,29 @@ export function useMeetingBot() {
         title: meetingTitle,
         platform,
         url: meetingUrl,
+        startTime: meetingStartTime,
+        date: meetingStartTime || new Date().toISOString(),
         elapsedSeconds,
-        vpnIp
+        vpnIp,
+        participants,
       },
       transcripts
     );
-  }, [meetingTitle, platform, meetingUrl, elapsedSeconds, vpnIp, transcripts]);
+  }, [meetingTitle, platform, meetingUrl, meetingStartTime, elapsedSeconds, vpnIp, participants, transcripts]);
 
-  const handleAddSchedule = useCallback((schedule: Omit<ScheduledMeeting, 'id' | 'createdAt'>) => {
-    storageService.addSchedule(schedule);
-    setSchedules(storageService.getSchedules());
+  const handleAddSchedule = useCallback(async (schedule: Omit<ScheduledMeeting, 'id' | 'createdAt'>) => {
+    await storageService.addSchedule(schedule);
+    setSchedules([...storageService.getSchedules()]);
   }, []);
 
-  const handleDeleteSchedule = useCallback((id: string) => {
-    storageService.deleteSchedule(id);
-    setSchedules(storageService.getSchedules());
+  const handleDeleteSchedule = useCallback(async (id: string) => {
+    await storageService.deleteSchedule(id);
+    setSchedules([...storageService.getSchedules()]);
   }, []);
 
-  const handleDeleteHistoryItem = useCallback((id: string) => {
-    storageService.deleteHistoryItem(id);
-    setHistory(storageService.getHistory());
+  const handleDeleteHistoryItem = useCallback(async (id: string) => {
+    await storageService.deleteHistoryItem(id);
+    setHistory([...storageService.getHistory()]);
   }, []);
 
   const handleStartSessionFromSchedule = useCallback((schedule: ScheduledMeeting, autoJoin: boolean = true) => {
@@ -370,6 +499,8 @@ export function useMeetingBot() {
     setLanguage,
     botState,
     elapsedSeconds,
+    meetingStartTime,
+    participants,
     audioActive,
     vpnConnected,
     vpnIp,
@@ -377,6 +508,10 @@ export function useMeetingBot() {
     interimText,
     interimSpeaker,
     interimLanguage,
+    transcribeMode,
+    setTranscribeMode,
+    isProcessingBatch,
+    batchProgress,
     schedules,
     history,
     isClosureOpen,
@@ -397,4 +532,5 @@ export function useMeetingBot() {
     handleStartSessionFromSchedule
   };
 }
+
 

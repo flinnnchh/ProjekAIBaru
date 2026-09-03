@@ -10,6 +10,7 @@ interface LiveTranscriberProps {
   interimSpeaker?: string;
   interimLanguage?: 'id' | 'en' | 'mixed';
   isRecording: boolean;
+  liveTranscribeEnabled: boolean;
   onExportDocx: () => void;
   onExportTxt: () => void;
   onClearTranscripts?: () => void;
@@ -45,6 +46,7 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
   interimSpeaker = 'Speaker 1',
   interimLanguage = 'id',
   isRecording,
+  liveTranscribeEnabled,
   onExportDocx,
   onExportTxt,
   onClearTranscripts,
@@ -109,24 +111,41 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
       {/* 1. Top Bar */}
       <div className="p-3.5 sm:p-4 border-b border-[#233863]/60 flex flex-wrap items-center justify-between gap-3 bg-[#0B1220]/80 backdrop-blur-xl rounded-t-2xl">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-gradient-to-br from-[#233863] to-[#2D4A7A] border border-[#3A4E7A]/40 rounded-xl shadow-md flex-shrink-0">
-            <MaterialIcon icon="auto_awesome" size="md" className="text-[#3DD6E8]" />
+          <div className={`p-2 rounded-xl shadow-md flex-shrink-0 transition-all duration-300 ${
+            liveTranscribeEnabled 
+              ? 'bg-gradient-to-br from-[#233863] to-[#2D4A7A] border border-[#3A4E7A]/40' 
+              : 'bg-gradient-to-br from-[#F5B400]/20 to-[#D9A441]/10 border border-[#F5B400]/30'
+          }`}>
+            <MaterialIcon 
+              icon={liveTranscribeEnabled ? 'auto_awesome' : 'cloud_sync'} 
+              size="md" 
+              className={liveTranscribeEnabled ? 'text-[#3DD6E8]' : 'text-[#F5B400]'} 
+            />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-xs font-extrabold text-white uppercase tracking-wider font-display">
-                Live Transcriber
+                {liveTranscribeEnabled ? 'Live Transcriber' : 'Background Audio Recorder'}
               </h3>
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-[#141E33] text-[10px] text-[#3DD6E8] font-mono font-bold border border-[#233863]">
-                Deepgram Nova-2
-              </span>
-              <span className="sm:hidden px-2 py-0.5 rounded-full bg-[#141E33] text-[9px] text-[#3DD6E8] font-mono font-bold border border-[#233863]">
-                Nova-2
-              </span>
+              {liveTranscribeEnabled ? (
+                <span className="px-2 py-0.5 rounded-full bg-[#141E33] text-[10px] text-[#3DD6E8] font-mono font-bold border border-[#233863]">
+                  Deepgram Nova-2 (Live)
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full bg-[#F5B400]/15 text-[10px] text-[#F5B400] font-mono font-bold border border-[#F5B400]/30">
+                  ⭐ Background Mode (Post-Meeting)
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-[#8A94A3] flex items-center gap-1.5 mt-0.5 font-medium">
-              <MaterialIcon icon="language" size="xs" className="text-[#3DD6E8]" />
-              <span className="truncate">Deteksi Otomatis: <strong className="text-white">ID, EN, & Mixed</strong></span>
+              <MaterialIcon icon={liveTranscribeEnabled ? 'language' : 'high_quality'} size="xs" className={liveTranscribeEnabled ? 'text-[#3DD6E8]' : 'text-[#F5B400]'} />
+              <span className="truncate">
+                {liveTranscribeEnabled ? (
+                  <>Deteksi Otomatis: <strong className="text-white">ID, EN, & Mixed (Real-time)</strong></>
+                ) : (
+                  <>Pemrosesan Audio: <strong className="text-white">Akurasi Maksimal (Batch Nova-2)</strong></>
+                )}
+              </span>
             </p>
           </div>
         </div>
@@ -201,40 +220,86 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
         onScroll={handleScroll}
         className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-1 font-sans bg-[#0B1220]/40"
       >
-        {filteredTranscripts.length === 0 && !interimText && (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6">
-            {isRecording ? (
-              <div className="space-y-3 animate-fade-in">
-                <div className="relative flex items-center justify-center mx-auto w-16 h-16">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7A2530] opacity-20"></span>
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#7A2530]/40 to-[#992E3C]/20 border border-[#7A2530]/40 flex items-center justify-center shadow-lg">
-                    <MaterialIcon icon="auto_awesome" size="xl" className="text-[#FF8E9D] animate-pulse" />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-extrabold text-[#FF8E9D] uppercase tracking-wider font-display">
-                    Live Transcribing Aktif
-                  </p>
-                  <p className="text-[11px] text-[#8A94A3] max-w-sm mt-1.5 leading-relaxed">
-                    Bot mendengarkan audio meeting real-time. Bicaralah di room meeting, teks otomatis mengalir di sini.
-                  </p>
+        {/* Background Mode Placeholder (Recording State) */}
+        {!liveTranscribeEnabled && isRecording && (
+          <div className="h-full flex flex-col items-center justify-center text-center p-6 animate-fade-in">
+            <div className="space-y-4">
+              <div className="relative flex items-center justify-center mx-auto w-20 h-20">
+                <span className="animate-ping absolute inline-flex h-16 w-16 rounded-full bg-[#F5B400] opacity-10"></span>
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#F5B400]/20 to-[#D9A441]/10 border border-[#F5B400]/30 flex items-center justify-center shadow-lg">
+                  <MaterialIcon icon="cloud_sync" size="xl" className="text-[#F5B400]" />
                 </div>
               </div>
-            ) : (
-              <div className="animate-fade-in">
-                <div className="w-14 h-14 rounded-2xl bg-[#141E33] border border-[#233863] flex items-center justify-center text-[#6B7585] mb-3 mx-auto">
-                  <MaterialIcon icon="description" size="xl" />
-                </div>
-                <p className="text-xs font-bold text-white font-display">Belum ada transkrip</p>
-                <p className="text-[11px] text-[#8A94A3] max-w-xs mt-1.5 leading-relaxed">
-                  Klik tombol <strong className="text-[#FF8E9D]">RECORD</strong> untuk memulai transkripsi audio real-time.
+              <div>
+                <p className="text-xs font-extrabold text-[#F5B400] uppercase tracking-wider font-display">
+                  Background Mode Aktif
+                </p>
+                <p className="text-[11px] text-[#8A94A3] max-w-sm mt-2 leading-relaxed">
+                  Bot sedang merekam audio meeting di background.
+                  <br />
+                  <strong className="text-white">Transkrip akurasi tinggi</strong> akan diproses & ditampilkan saat Anda menekan tombol <strong className="text-[#3DD6E8]">STOP</strong>.
                 </p>
               </div>
-            )}
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F5B400] opacity-60"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F5B400]"></span>
+                </span>
+                <span className="text-[10px] text-[#D9A441] font-mono font-bold">Merekam...</span>
+              </div>
+            </div>
           </div>
         )}
 
-        {filteredTranscripts.map((item, idx) => {
+        {/* Empty / Standby Placeholder */}
+        {!isRecording && filteredTranscripts.length === 0 && !interimText && (
+          <div className="h-full flex flex-col items-center justify-center text-center p-6">
+            <div className="animate-fade-in">
+              <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center mb-3 mx-auto ${
+                liveTranscribeEnabled 
+                  ? 'bg-[#141E33] border-[#233863] text-[#6B7585]' 
+                  : 'bg-[#F5B400]/10 border-[#F5B400]/30 text-[#F5B400]'
+              }`}>
+                <MaterialIcon icon={liveTranscribeEnabled ? 'description' : 'cloud_sync'} size="xl" />
+              </div>
+              <p className="text-xs font-bold text-white font-display">
+                {liveTranscribeEnabled ? 'Belum ada transkrip' : 'Mode Background Siap'}
+              </p>
+              <p className="text-[11px] text-[#8A94A3] max-w-xs mt-1.5 leading-relaxed">
+                {liveTranscribeEnabled ? (
+                  <>Klik tombol <strong className="text-[#FF8E9D]">RECORD</strong> untuk memulai transkripsi audio real-time.</>
+                ) : (
+                  <>Klik tombol <strong className="text-[#FF8E9D]">RECORD</strong> untuk mulai merekam. Transkrip akurasi tinggi akan dihasilkan saat tombol <strong className="text-[#3DD6E8]">STOP</strong> ditekan.</>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Live Recording Placeholder (Only when in live mode and transcripts haven't arrived yet) */}
+        {liveTranscribeEnabled && isRecording && filteredTranscripts.length === 0 && !interimText && (
+          <div className="h-full flex flex-col items-center justify-center text-center p-6">
+            <div className="space-y-3 animate-fade-in">
+              <div className="relative flex items-center justify-center mx-auto w-16 h-16">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7A2530] opacity-20"></span>
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#7A2530]/40 to-[#992E3C]/20 border border-[#7A2530]/40 flex items-center justify-center shadow-lg">
+                  <MaterialIcon icon="auto_awesome" size="xl" className="text-[#FF8E9D] animate-pulse" />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-[#FF8E9D] uppercase tracking-wider font-display">
+                  Live Transcribing Aktif
+                </p>
+                <p className="text-[11px] text-[#8A94A3] max-w-sm mt-1.5 leading-relaxed">
+                  Bot mendengarkan audio meeting real-time. Bicaralah di room meeting, teks otomatis mengalir di sini.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Render transcripts list ONLY IF liveTranscribeEnabled or after recording stops */}
+        {(liveTranscribeEnabled || !isRecording) && filteredTranscripts.map((item, idx) => {
           const color = getSpeakerColor(item.speaker);
           const initials = getSpeakerInitials(item.speaker);
 
@@ -266,8 +331,8 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
           );
         })}
 
-        {/* Interim Live Typing */}
-        {isRecording && interimText && (
+        {/* Interim Live Typing (Live Mode Only) */}
+        {liveTranscribeEnabled && isRecording && interimText && (
           <div className="bg-[#141E33]/80 p-3 rounded-xl border border-[#3DD6E8]/20 shadow-md animate-fade-in">
             <div className="flex gap-2.5">
               <div className={`speaker-avatar ${getSpeakerColor(interimSpeaker).bg} ${getSpeakerColor(interimSpeaker).text} border ${getSpeakerColor(interimSpeaker).border} mt-0.5`}>
@@ -295,15 +360,22 @@ export const LiveTranscriber: React.FC<LiveTranscriberProps> = ({
       {/* 3. Bottom Action Bar */}
       <div className="p-3.5 border-t border-[#233863]/60 bg-[#0B1220]/80 backdrop-blur-xl rounded-b-2xl flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 text-xs text-[#8A94A3] font-mono">
-          <div className="flex items-center gap-2">
-            <MaterialIcon icon="format_list_numbered" size="xs" className="text-[#6B7585]" />
-            <span><strong className="text-white">{transcripts.length}</strong> entri</span>
-            <span className="text-[#233863]">•</span>
-            <MaterialIcon icon="text_fields" size="xs" className="text-[#6B7585]" />
-            <span><strong className="text-[#3DD6E8]">{transcripts.reduce((acc, curr) => acc + curr.text.split(/\s+/).length, 0)}</strong> kata</span>
-          </div>
+          {liveTranscribeEnabled || !isRecording ? (
+            <div className="flex items-center gap-2">
+              <MaterialIcon icon="format_list_numbered" size="xs" className="text-[#6B7585]" />
+              <span><strong className="text-white">{transcripts.length}</strong> entri</span>
+              <span className="text-[#233863]">•</span>
+              <MaterialIcon icon="text_fields" size="xs" className="text-[#6B7585]" />
+              <span><strong className="text-[#3DD6E8]">{transcripts.reduce((acc, curr) => acc + curr.text.split(/\s+/).length, 0)}</strong> kata</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-[#F5B400] font-sans text-xs">
+              <MaterialIcon icon="cloud_sync" size="xs" />
+              <span>Mode Background: Audio direkam penuh & diproses saat STOP</span>
+            </div>
+          )}
 
-          {transcripts.length > 0 && (
+          {(liveTranscribeEnabled || !isRecording) && transcripts.length > 0 && (
             <button
               onClick={() => setConfirmClear(true)}
               className="text-[11px] text-[#6B7585] hover:text-[#FF8E9D] flex items-center gap-1 transition-colors font-sans"

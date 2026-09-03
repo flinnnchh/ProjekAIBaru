@@ -5,7 +5,9 @@ import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { exportToDocx } from '../../services/exportDocx';
 import { exportToTxt } from '../../services/exportTxt';
+import { driveService } from '../../services/driveService';
 import { TranscriptItem } from '../../types/transcript';
+
 
 // Speaker color palette (same as LiveTranscriber)
 const SPEAKER_COLORS = [
@@ -40,6 +42,8 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [speakerFilter, setSpeakerFilter] = useState('ALL');
+  const [isUploadingDrive, setIsUploadingDrive] = useState(false);
+  const [driveUploadResult, setDriveUploadResult] = useState<{ success: boolean; link?: string; error?: string } | null>(null);
 
   if (!historyItem) return null;
 
@@ -67,21 +71,78 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
 
   const handleExportDocx = () => {
     exportToDocx(
-      { title: historyItem.title, platform: historyItem.platform, url: historyItem.url, elapsedSeconds: historyItem.durationSeconds, vpnIp: '10.24.0.12' },
+      {
+        title: historyItem.title,
+        platform: historyItem.platform,
+        url: historyItem.url,
+        date: historyItem.date,
+        elapsedSeconds: historyItem.durationSeconds,
+        vpnIp: '10.24.0.12',
+        participants: historyItem.participants || uniqueSpeakers,
+      },
       transcripts
     );
   };
 
   const handleExportTxt = () => {
     exportToTxt(
-      { title: historyItem.title, platform: historyItem.platform, url: historyItem.url, elapsedSeconds: historyItem.durationSeconds, vpnIp: '10.24.0.12' },
+      {
+        title: historyItem.title,
+        platform: historyItem.platform,
+        url: historyItem.url,
+        date: historyItem.date,
+        elapsedSeconds: historyItem.durationSeconds,
+        vpnIp: '10.24.0.12',
+        participants: historyItem.participants || uniqueSpeakers,
+      },
       transcripts
     );
+  };
+
+  const handleUploadToDrive = async (format: 'docx' | 'txt' = 'docx') => {
+    setIsUploadingDrive(true);
+    setDriveUploadResult(null);
+
+    try {
+      const status = await driveService.getStatus();
+      if (!status.connected) {
+        const authRes = await driveService.connect();
+        if (!authRes.success) {
+          setDriveUploadResult({ success: false, error: authRes.error || 'Google Drive belum terhubung' });
+          setIsUploadingDrive(false);
+          return;
+        }
+      }
+
+      const res = await driveService.uploadMeetingDocument(
+        {
+          title: historyItem.title,
+          platform: historyItem.platform,
+          url: historyItem.url,
+          date: historyItem.date,
+          elapsedSeconds: historyItem.durationSeconds,
+          participants: historyItem.participants || uniqueSpeakers,
+        },
+        transcripts,
+        format
+      );
+
+      if (res.success) {
+        setDriveUploadResult({ success: true, link: res.webViewLink });
+      } else {
+        setDriveUploadResult({ success: false, error: res.message || 'Gagal mengunggah berkas' });
+      }
+    } catch (err: any) {
+      setDriveUploadResult({ success: false, error: err.message || 'Terjadi kesalahan sistem' });
+    } finally {
+      setIsUploadingDrive(false);
+    }
   };
 
   const mins = Math.floor(historyItem.durationSeconds / 60);
   const secs = historyItem.durationSeconds % 60;
   const durationStr = `${mins}m ${secs}s`;
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-fade-in">
@@ -94,19 +155,26 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
               <Badge variant="cyan" size="sm" icon="auto_awesome">Nova-2</Badge>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-[#8A94A3] mt-1.5 font-mono">
+            <div className="flex items-center gap-3 text-xs text-[#8A94A3] mt-1.5 font-mono flex-wrap">
               <span className="flex items-center gap-1">
                 <MaterialIcon icon="timer" size="xs" className="text-[#3DD6E8]" />
                 {durationStr}
               </span>
               <span className="text-[#233863]">•</span>
-              <span>{new Date(historyItem.date).toLocaleDateString('id-ID', { dateStyle: 'medium' })}</span>
+              <span className="flex items-center gap-1">
+                <MaterialIcon icon="calendar_today" size="xs" className="text-[#8A94A3]" />
+                {new Date(historyItem.date).toLocaleDateString('id-ID', { dateStyle: 'medium' })} {new Date(historyItem.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+              </span>
               <span className="text-[#233863]">•</span>
               <span className="text-white font-bold">{historyItem.totalWords} Kata</span>
               <span className="text-[#233863]">•</span>
-              <span className="text-[#3DD6E8]">{historyItem.speakersCount} Pembicara</span>
+              <span className="text-[#3DD6E8] flex items-center gap-1">
+                <MaterialIcon icon="group" size="xs" />
+                {historyItem.participants?.length || historyItem.speakersCount} Peserta
+              </span>
             </div>
           </div>
+
 
           <button
             onClick={onClose}
@@ -212,13 +280,41 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[#233863]/60 bg-[#0B1220]/80 backdrop-blur-xl rounded-b-2xl flex items-center justify-between gap-3">
+        <div className="p-4 border-t border-[#233863]/60 bg-[#0B1220]/80 backdrop-blur-xl rounded-b-2xl flex items-center justify-between gap-3 flex-wrap">
           <div className="text-xs text-[#8A94A3] font-mono flex items-center gap-1.5">
             <MaterialIcon icon="format_list_numbered" size="xs" className="text-[#6B7585]" />
             <strong className="text-white">{filteredTranscripts.length}</strong> / {transcripts.length} baris
+            {driveUploadResult && (
+              <span className={`ml-2 px-2 py-0.5 rounded text-[11px] font-bold ${
+                driveUploadResult.success ? 'text-[#4ADE80] bg-[#22C55E]/10' : 'text-[#FF8E9D] bg-[#FF8E9D]/10'
+              }`}>
+                {driveUploadResult.success ? '✅ Terupload ke Drive' : driveUploadResult.error}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
+            {driveUploadResult?.success && driveUploadResult.link ? (
+              <a
+                href={driveUploadResult.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-[#22C55E]/20 hover:bg-[#22C55E]/30 border border-[#22C55E]/40 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <span>Buka di Drive</span>
+                <MaterialIcon icon="open_in_new" size="xs" />
+              </a>
+            ) : (
+              <button
+                onClick={() => handleUploadToDrive('docx')}
+                disabled={isUploadingDrive}
+                className="px-3 py-1.5 bg-[#141E33] hover:bg-[#1A2845] border border-[#3DD6E8]/40 hover:border-[#3DD6E8] rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              >
+                <MaterialIcon icon={isUploadingDrive ? 'sync' : 'cloud_upload'} size="xs" className={isUploadingDrive ? 'animate-spin text-[#3DD6E8]' : 'text-[#3DD6E8]'} />
+                <span>{isUploadingDrive ? 'Mengunggah...' : 'Drive'}</span>
+              </button>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -237,6 +333,7 @@ export const TranscriptViewerModal: React.FC<TranscriptViewerModalProps> = ({
             </Button>
           </div>
         </div>
+
       </div>
     </div>
   );

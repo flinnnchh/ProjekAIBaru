@@ -1,11 +1,12 @@
 import React from 'react';
+import { MaterialIcon } from './MaterialIcon';
 
 interface BadgeProps {
   children: React.ReactNode;
   variant?: 'default' | 'primary' | 'success' | 'danger' | 'warning' | 'info' | 'cyan' | 'neutral';
   size?: 'sm' | 'md';
   pulse?: boolean;
-  icon?: string; // Material Symbols icon name
+  icon?: string; // Material Symbols icon name (mapped to Lucide)
   className?: string;
 }
 
@@ -44,9 +45,7 @@ export const Badge: React.FC<BadgeProps> = ({
         </span>
       )}
       {icon && (
-        <span className="material-symbols-outlined" style={{ fontSize: size === 'sm' ? '12px' : '14px' }} aria-hidden="true">
-          {icon}
-        </span>
+        <MaterialIcon icon={icon} size="xs" />
       )}
       {children}
     </span>

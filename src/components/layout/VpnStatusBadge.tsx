@@ -17,7 +17,7 @@ export const VpnStatusBadge: React.FC<VpnStatusBadgeProps> = ({ connected, ip })
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#3DD6E8]"></span>
           </span>
           <span className="text-[#B8BFC9] text-[11px] font-bold">VPC:</span>
-          <span className="text-white font-bold text-[11px]">{ip || '10.24.0.12'}</span>
+          <span className="text-white font-bold text-[11px]">{ip || 'VPC PERUSAHAAN'}</span>
         </div>
       </div>
     );

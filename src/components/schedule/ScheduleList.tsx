@@ -4,6 +4,7 @@ import { ScheduledMeeting } from '../../types/meeting';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { ScheduleModal } from './ScheduleModal';
+import { ConfirmDeleteModal } from '../common/ConfirmDeleteModal';
 
 interface ScheduleListProps {
   schedules: ScheduledMeeting[];
@@ -26,6 +27,7 @@ export const ScheduleList: React.FC<ScheduleListProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -209,7 +211,7 @@ export const ScheduleList: React.FC<ScheduleListProps> = ({
                     </div>
 
                     <button
-                      onClick={() => onDeleteSchedule(item.id)}
+                      onClick={() => setDeleteTargetId(item.id)}
                       className="text-[#6B7585] hover:text-[#FF8E9D] p-1.5 rounded-xl hover:bg-[#7A2530]/10 transition-all duration-200 active:scale-90"
                       title="Hapus Jadwal"
                     >
@@ -294,6 +296,16 @@ export const ScheduleList: React.FC<ScheduleListProps> = ({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={onAddSchedule}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={() => {
+          if (deleteTargetId) onDeleteSchedule(deleteTargetId);
+        }}
+        title="Hapus Jadwal Meeting?"
+        message="Jadwal meeting ini akan dihapus secara permanen. Bot tidak akan otomatis join untuk sesi ini. Yakin ingin melanjutkan?"
       />
     </div>
   );

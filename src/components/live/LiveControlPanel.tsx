@@ -18,6 +18,7 @@ interface LiveControlPanelProps {
   elapsedSeconds: number;
   audioActive: boolean;
   onJoin: () => void;
+  onJoinClick: () => void;
   onRecord: () => void;
   onPauseResume: () => void;
   onStop: () => void;
@@ -37,6 +38,7 @@ export const LiveControlPanel: React.FC<LiveControlPanelProps> = ({
   elapsedSeconds,
   audioActive,
   onJoin,
+  onJoinClick,
   onRecord,
   onPauseResume,
   onStop,
@@ -79,7 +81,7 @@ export const LiveControlPanel: React.FC<LiveControlPanelProps> = ({
       return;
     }
     setUrlError(false);
-    onJoin();
+    onJoinClick();
   };
 
   const scrollToTranscript = () => {
@@ -112,12 +114,16 @@ export const LiveControlPanel: React.FC<LiveControlPanelProps> = ({
               ? 'bg-gradient-to-br from-[#7A2530] to-[#992E3C] border border-[#992E3C]/40'
               : 'bg-gradient-to-br from-[#233863] to-[#2D4A7A] border border-[#3A4E7A]/40'
           }`}>
-            <MaterialIcon
-              icon={isRecording ? 'radio' : 'smart_toy'}
-              size="lg"
-              filled={isRecording}
-              className={isRecording ? 'text-[#FF8E9D] animate-pulse' : 'text-[#3DD6E8]'}
-            />
+            {isRecording ? (
+              <MaterialIcon
+                icon="radio"
+                size="lg"
+                filled
+                className="text-[#FF8E9D] animate-pulse"
+              />
+            ) : (
+              <img src="/chatbot-icon.png" alt="Chatbot" className="w-7 h-7" />
+            )}
           </div>
           <div>
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider flex items-center gap-2 font-display">
@@ -196,7 +202,7 @@ export const LiveControlPanel: React.FC<LiveControlPanelProps> = ({
           <div className="relative">
             <select
               value={language}
-              disabled={inSession}
+              disabled={isRecording || isPaused}
               onChange={(e) => setLanguage(e.target.value as 'id' | 'en' | '')}
               className={`w-full bg-[#0B1220] border border-[#233863] rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#3DD6E8]/50 focus:border-[#3DD6E8]/50 disabled:opacity-40 appearance-none cursor-pointer shadow-lui-inner transition-all duration-200 ${
                 language ? 'text-white font-bold' : 'text-[#6B7585] font-normal'

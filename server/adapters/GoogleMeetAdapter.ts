@@ -13,9 +13,15 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
   private audioStream: PassThrough | null = null;
   private isCapturingAudio: boolean = false;
   private pollInterval: any = null;
+  private participantInterval: any = null;
   private lastCapturedText: string = '';
+  private discoveredParticipants = new Set<string>();
+  private participantPollTicks = 0;
+  private botDisplayName: string = process.env.BOT_DISPLAY_NAME || 'AI Note-Taker Bot';
 
   constructor(private io?: SocketIOServer) {}
+
+
 
   async join(meetingUrl: string, botName: string = process.env.BOT_DISPLAY_NAME || 'AI Note-Taker Bot'): Promise<boolean> {
     try {
@@ -264,13 +270,19 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
           return false;
         }
 
+        this.botDisplayName = botName || process.env.BOT_DISPLAY_NAME || 'AI Note-Taker Bot';
         console.log('[GoogleMeetAdapter] ✅ Bot BERHASIL standby di Google Meet!');
         console.log('[GoogleMeetAdapter] 🔴 👉 Silakan klik tombol merah "2. RECORD" di Web Panel untuk mulai merekam & transkrip.');
+        
+        // Start continuous participant scanner to detect all room participants immediately
+        this.startParticipantScanner();
+
         return true;
       } catch (err) {
         console.warn('[GoogleMeetAdapter] Join button check error:', err);
         return false;
       }
+
     } catch (error) {
       console.error(`[GoogleMeetAdapter] Gagal bergabung:`, error);
       return false;
@@ -499,7 +511,12 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
               if (alreadySent === pending.text) continue;
               (this as any)[`__sent_${index}`] = pending.text;
 
-              console.log(`[Google Meet Live Subtitle] ${item.speaker}: "${pending.text}"`);
+              const speakerName = item.speaker || 'Speaker 1';
+              if (speakerName && speakerName !== 'Speaker' && !speakerName.toLowerCase().startsWith('speaker ')) {
+                this.discoveredParticipants.add(speakerName);
+              }
+
+              console.log(`[Google Meet Live Subtitle] ${speakerName}: "${pending.text}"`);
 
               const isEnglish = /[a-zA-Z]{4,}/.test(pending.text) && /\b(the|is|and|to|in|you|that|it|he|was|for|on|are|as|with|his|they|at|be|this|have|from|or|one|had|by|word|but|not|what|all|were|we|when|your|can|said|there|use|an|each|which|she|do|how|their|if|will|up|other|about|out|many|then|them|these|so|some|her|would|make|like|him|into|time|has|look|two|more|write|go|see|number|no|way|could|people|my|than|first|water|been|call|who|oil|its|now|find|long|down|day|did|get|come|made|may|part)\b/i.test(pending.text);
               const isIndo = /\b(dan|yang|di|ke|dari|ini|itu|untuk|dengan|pada|adalah|sebagai|kita|saya|anda|kamu|mereka|sudah|bisa|akan|tidak|juga|ada|dalam|karena|atau|saat|oleh|secara|hari|bagi|hanya|setelah|serta|tersebut|bila|jika|agar|supaya|kami|selamat|pagi|siang|malam)\b/i.test(pending.text);
@@ -515,7 +532,7 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
                 this.io.emit('transcript_data', {
                   id: `meet-${Date.now()}-${index}-${Math.random()}`,
                   meetingId: 'live-meet',
-                  speaker: item.speaker || 'Speaker 1',
+                  speaker: speakerName,
                   speakerId: index,
                   timestamp,
                   text: pending.text,
@@ -526,12 +543,213 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
                 });
               }
             }
+
+            // Periodically scan participants from DOM every ~2 seconds (4 ticks @ 500ms)
+            this.participantPollTicks++;
+            if (this.participantPollTicks % 4 === 0 && this.page) {
+              const domNames = await this.page.evaluate(() => {
+                const names: string[] = [];
+                const tileEls = document.querySelectorAll(
+                  '[data-self-name], span[jsname="W297wb"], span[class*="zWGUib"], div[class*="cS7aqe"], div[data-participant-id], div[data-requested-participant-id]'
+                );
+                tileEls.forEach((el) => {
+                  const text = el.textContent?.trim();
+                  if (text && text.length > 1 && text.length < 50 && !text.includes('\n') && text !== 'You' && text !== 'Anda') {
+                    names.push(text);
+                  }
+                  const selfName = el.getAttribute('data-self-name');
+                  if (selfName && selfName.trim() && selfName !== 'You' && selfName !== 'Anda') {
+                    names.push(selfName.trim());
+                  }
+                });
+
+                const listItems = document.querySelectorAll('div[role="listitem"] span[class*="zWGUib"], div[role="listitem"] span');
+                listItems.forEach((el) => {
+                  const text = el.textContent?.trim();
+                  if (text && text.length > 1 && text.length < 50 && !text.includes('\n') && text !== 'You' && text !== 'Anda') {
+                    names.push(text);
+                  }
+                });
+
+                return Array.from(new Set(names));
+              }).catch(() => [] as string[]);
+
+              if (domNames && Array.isArray(domNames)) {
+                domNames.forEach((name) => {
+                  if (name && typeof name === 'string' && name.trim().length > 1) {
+                    this.discoveredParticipants.add(name.trim());
+                  }
+                });
+              }
+
+              if (this.io && this.discoveredParticipants.size > 0) {
+                this.io.emit('participants_update', {
+                  count: this.discoveredParticipants.size,
+                  participants: Array.from(this.discoveredParticipants),
+                });
+              }
+            }
           } catch (pollErr) {}
         }, 500);
       }
     }
 
     return this.audioStream;
+  }
+
+  /**
+   * Filter out bot names, icon ligatures (e.g. computer_arrow_up, volume_up),
+   * strip system suffixes e.g. (You, presenting...), and deduplicate presentations.
+   */
+  private cleanAndFilterParticipants(rawNames: string[]): string[] {
+    const botNameLower = (this.botDisplayName || 'botnotulen').toLowerCase().trim();
+
+    const isIconOrSystemWord = (str: string) => {
+      const lower = str.toLowerCase().trim();
+      // Material Icon ligatures typically contain underscores e.g. volume_up, computer_arrow_up, keep_off
+      if (lower.includes('_') && /^[a-z0-9_]+$/.test(lower)) return true;
+      
+      const blacklist = [
+        'computer_arrow_up', 'volume_up', 'keep_off', 'mic_off', 'more_vert',
+        'push_pin', 'call_end', 'videocam_off', 'videocam', 'mic', 'screen_share',
+        'closed_caption', 'fullscreen', 'tune', 'info', 'chat', 'people', 'peserta',
+        'contributors', 'contributor', 'meeting host', 'your presentation', 'presentation',
+        'mempresentasikan', 'in call', 'in the call', 'add people', 'tambahkan orang',
+        'pin', 'mute', 'unmute', 'speaker', 'speaker 1', 'speaker 2', 'speaker 3', 'you', 'anda',
+        'arrow_up', 'arrow_down', 'check', 'close', 'edit', 'delete'
+      ];
+      if (blacklist.includes(lower)) return true;
+      if (/^\d+$/.test(lower)) return true; // pure numbers
+      return false;
+    };
+
+    const isBot = (name: string) => {
+      const lower = name.toLowerCase().trim();
+      if (!lower) return true;
+      if (
+        lower.includes(botNameLower) ||
+        lower.startsWith('botnotul') ||
+        lower.includes('botnotulen') ||
+        lower.includes('ai note-taker') ||
+        lower.includes('notetaker') ||
+        lower === 'bot' ||
+        lower === 'ai bot' ||
+        lower.includes('botnotulenlui')
+      ) {
+        return true;
+      }
+      return false;
+    };
+
+    const cleanedList = rawNames
+      .map((n) => {
+        let s = (n || '').trim();
+        // Remove annotations e.g. (You), (Your presentation), (Meeting host), etc.
+        s = s.replace(/\s*\((?:You|Anda|Your presentation|Presenting|Mempresentasikan|Presentation|Host|Meeting host|Penyelenggara|annot[^\)]*)\)/gi, '').trim();
+        s = s.replace(/(?:Your presentation|Meeting host|Mempresentasikan)/gi, '').trim();
+        s = s.replace(/[\r\n\t]+/g, ' ').trim();
+        return s;
+      })
+      .filter((n) => n.length > 1 && !isIconOrSystemWord(n) && !isBot(n));
+
+    // Sort descending by length to prioritize full names over truncated ones
+    const sorted = Array.from(new Set(cleanedList)).sort((a, b) => b.length - a.length);
+    const result: string[] = [];
+
+    for (const candidate of sorted) {
+      const cleanCand = candidate.replace(/\.{2,}$/, '').trim().toLowerCase();
+      if (!cleanCand || isIconOrSystemWord(cleanCand) || isBot(cleanCand)) continue;
+
+      const alreadyCovered = result.some((existing) => {
+        const cleanExisting = existing.toLowerCase();
+        return cleanExisting.startsWith(cleanCand) || cleanExisting.includes(cleanCand);
+      });
+
+      if (!alreadyCovered) {
+        result.push(candidate.replace(/\.{2,}$/, '').trim());
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Starts a background scanner that continuously inspects Google Meet DOM
+   * to detect all active participants in the room, regardless of whether they speak.
+   */
+  public startParticipantScanner(): void {
+    if (this.participantInterval) return;
+
+    this.participantInterval = setInterval(async () => {
+      if (!this.page) return;
+
+      try {
+        const domNames = await this.page.evaluate(() => {
+          const names: string[] = [];
+
+          // Helper to check if node is an icon
+          const isIconNode = (el: Element) => {
+            const cls = (el.className || '').toString().toLowerCase();
+            if (cls.includes('google-symbols') || cls.includes('material-icons')) return true;
+            if (el.getAttribute('aria-hidden') === 'true') return true;
+            return false;
+          };
+
+          // 1. Top bar presentation / active speaker / self badge
+          const topLabels = document.querySelectorAll('div[data-self-name]');
+          topLabels.forEach((el) => {
+            const selfName = el.getAttribute('data-self-name');
+            if (selfName && selfName.trim() && !isIconNode(el)) names.push(selfName.trim());
+          });
+
+          // 2. Video Tiles and Tile Name Badges (only specific text container spans)
+          const tileEls = document.querySelectorAll(
+            'div[data-self-name], span[jsname="W297wb"], span.zWGUib, div.cS7aqe, span.notranslate'
+          );
+          tileEls.forEach((el) => {
+            if (isIconNode(el)) return;
+            const selfName = el.getAttribute('data-self-name');
+            if (selfName && selfName.trim()) {
+              names.push(selfName.trim());
+            } else {
+              const text = el.textContent?.trim();
+              if (text && text.length > 1 && text.length < 50 && !text.includes('\n')) {
+                names.push(text);
+              }
+            }
+          });
+
+          // 3. Side Panel (People / Contributors list)
+          const listItems = document.querySelectorAll('div[role="listitem"] span.zWGUib, div[role="listitem"] span[jsname="W297wb"], div[role="listitem"] span.notranslate');
+          listItems.forEach((el) => {
+            if (isIconNode(el)) return;
+            const text = el.textContent?.trim();
+            if (text && text.length > 1 && text.length < 50 && !text.includes('\n')) {
+              names.push(text);
+            }
+          });
+
+          return Array.from(new Set(names));
+        }).catch(() => [] as string[]);
+
+        if (domNames && Array.isArray(domNames)) {
+          domNames.forEach((n) => {
+            if (n && typeof n === 'string') {
+              this.discoveredParticipants.add(n);
+            }
+          });
+        }
+
+        const filtered = this.cleanAndFilterParticipants(Array.from(this.discoveredParticipants));
+
+        if (this.io && filtered.length > 0) {
+          this.io.emit('participants_update', {
+            count: filtered.length,
+            participants: filtered,
+          });
+        }
+      } catch (err) {}
+    }, 2000);
   }
 
   async stopAudioCapture(): Promise<void> {
@@ -555,6 +773,63 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
   }
 
   async getParticipants(): Promise<ParticipantInfo[]> {
+    if (this.page) {
+      try {
+        // Try opening the People panel once if it's available and not open
+        try {
+          const peopleBtn = await this.page.$('button[aria-label*="people" i], button[aria-label*="orang" i], button[aria-label*="peserta" i], button[aria-label*="Show everyone" i], button[data-panel-id="1"]');
+          if (peopleBtn) {
+            await peopleBtn.click().catch(() => {});
+            await this.page.waitForTimeout(300);
+          }
+        } catch (e) {}
+
+        const domNames = await this.page.evaluate(() => {
+          const names: string[] = [];
+          const isIconNode = (el: Element) => {
+            const cls = (el.className || '').toString().toLowerCase();
+            if (cls.includes('google-symbols') || cls.includes('material-icons')) return true;
+            if (el.getAttribute('aria-hidden') === 'true') return true;
+            return false;
+          };
+
+          const els = document.querySelectorAll(
+            'div[data-self-name], span[jsname="W297wb"], span.zWGUib, div.cS7aqe, div[role="listitem"] span.zWGUib, div[role="listitem"] span.notranslate'
+          );
+          els.forEach((el) => {
+            if (isIconNode(el)) return;
+            const selfName = el.getAttribute('data-self-name');
+            if (selfName && selfName.trim()) {
+              names.push(selfName.trim());
+            } else {
+              const text = el.textContent?.trim();
+              if (text && text.length > 1 && text.length < 50 && !text.includes('\n')) {
+                names.push(text);
+              }
+            }
+          });
+          return Array.from(new Set(names));
+        }).catch(() => [] as string[]);
+
+        if (domNames && Array.isArray(domNames)) {
+          domNames.forEach((n) => {
+            if (n) this.discoveredParticipants.add(n);
+          });
+        }
+      } catch (err) {}
+    }
+
+    const filtered = this.cleanAndFilterParticipants(Array.from(this.discoveredParticipants));
+
+    if (filtered.length > 0) {
+      return filtered.map((name, idx) => ({
+        id: String(idx + 1),
+        name,
+        isMuted: false,
+        isHost: idx === 0,
+      }));
+    }
+
     return [{ id: '1', name: 'Meeting Participant', isMuted: false, isHost: true }];
   }
 
@@ -564,6 +839,10 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
       if (this.pollInterval) {
         clearInterval(this.pollInterval);
         this.pollInterval = null;
+      }
+      if (this.participantInterval) {
+        clearInterval(this.participantInterval);
+        this.participantInterval = null;
       }
 
       if (this.page) {
@@ -602,3 +881,4 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
     }
   }
 }
+

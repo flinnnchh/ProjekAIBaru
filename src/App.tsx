@@ -2,17 +2,31 @@ import React, { useState } from 'react';
 import { Navbar } from './components/layout/Navbar';
 import { LiveControlPanel } from './components/live/LiveControlPanel';
 import { LiveTranscriber } from './components/live/LiveTranscriber';
+import { TranscribeModePicker, TranscribeMode } from './components/live/TranscribeModePicker';
+import { TranscriptProcessingLoader } from './components/live/TranscriptProcessingLoader';
 import { ScheduleList } from './components/schedule/ScheduleList';
 import { HistoryList } from './components/history/HistoryList';
+import { AdminPanel } from './components/admin/AdminPanel';
 import { ClosureDialog } from './components/live/ClosureDialog';
 import { HotkeyGuideModal } from './components/live/HotkeyGuideModal';
+import { LoginPage } from './components/auth/LoginPage';
+import { RegisterPage } from './components/auth/RegisterPage';
 import { MaterialIcon } from './components/common/MaterialIcon';
 import { useMeetingBot } from './hooks/useMeetingBot';
 import { useHotkeys } from './hooks/useHotkeys';
+import { authService } from './services/authService';
+import { AuthUser } from './types/auth';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'live' | 'schedule' | 'history'>('live');
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getUser());
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<'live' | 'schedule' | 'history' | 'admin'>(() => {
+    const u = authService.getUser();
+    return u?.role === 'admin' ? 'admin' : 'live';
+  });
   const [isHotkeyGuideOpen, setIsHotkeyGuideOpen] = useState(false);
+  const [showModePicker, setShowModePicker] = useState(false);
+
 
   const {
     meetingUrl,
@@ -25,6 +39,8 @@ export function App() {
     setLanguage,
     botState,
     elapsedSeconds,
+    meetingStartTime,
+    participants,
     audioActive,
     vpnConnected,
     vpnIp,
@@ -49,8 +65,29 @@ export function App() {
     handleAddSchedule,
     handleDeleteSchedule,
     handleDeleteHistoryItem,
-    handleStartSessionFromSchedule
-  } = useMeetingBot();
+    handleStartSessionFromSchedule,
+    transcribeMode,
+    setTranscribeMode,
+    isProcessingBatch,
+    batchProgress,
+  } = useMeetingBot(currentUser?.id);
+
+  // Sync current user profile from server on mount
+  React.useEffect(() => {
+    if (authService.isAuthenticated()) {
+      authService.getCurrentUser().then((res) => {
+        if (res.success && res.user) {
+          setCurrentUser(res.user);
+          if (res.user.role === 'admin') {
+            setActiveTab('admin');
+          } else if (activeTab === 'admin') {
+            setActiveTab('live');
+          }
+        }
+      });
+    }
+  }, []);
+
 
   // Switch to live tab if an auto-schedule triggers
   React.useEffect(() => {
@@ -79,6 +116,34 @@ export function App() {
     handleStartSessionFromSchedule(schedule, autoJoin);
     setActiveTab('live');
   };
+
+  const handleLogout = () => {
+    authService.logout();
+    setCurrentUser(null);
+    setAuthView('login');
+  };
+
+  // If user is not logged in, display Login or Register page
+  if (!currentUser) {
+    if (authView === 'register') {
+      return (
+        <RegisterPage
+          onSuccess={(user) => {
+            setCurrentUser(user);
+          }}
+          onSwitchToLogin={() => setAuthView('login')}
+        />
+      );
+    }
+    return (
+      <LoginPage
+        onSuccess={(user) => {
+          setCurrentUser(user);
+        }}
+        onSwitchToRegister={() => setAuthView('register')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-white flex flex-col selection:bg-[#F5B400] selection:text-[#0B1220] relative overflow-x-hidden">
@@ -117,6 +182,8 @@ export function App() {
         onOpenHotkeyGuide={() => setIsHotkeyGuideOpen(true)}
         vpnConnected={vpnConnected}
         vpnIp={vpnIp}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Mobile Recording Status Pill (Rule 8: Reduce memory load) */}
@@ -141,58 +208,79 @@ export function App() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 relative z-10">
-        {activeTab === 'live' && (
-          <div className="space-y-4 sm:space-y-6 animate-fade-in">
-            <LiveControlPanel
-              meetingUrl={meetingUrl}
-              setMeetingUrl={setMeetingUrl}
-              meetingTitle={meetingTitle}
-              setMeetingTitle={setMeetingTitle}
-              platform={platform}
-              setPlatform={setPlatform}
-              language={language}
-              setLanguage={setLanguage}
-              botState={botState}
-              elapsedSeconds={elapsedSeconds}
-              audioActive={audioActive}
-              onJoin={handleJoin}
-              onRecord={handleRecord}
-              onPauseResume={handlePauseResume}
-              onStop={handleStop}
-              onLeave={handleLeave}
-            />
-            <LiveTranscriber
-              transcripts={transcripts}
-              interimText={interimText}
-              interimSpeaker={interimSpeaker}
-              interimLanguage={interimLanguage}
-              isRecording={botState === 'RECORDING'}
-              onExportDocx={handleExportDocx}
-              onExportTxt={handleExportTxt}
-              onClearTranscripts={handleClearTranscripts}
-            />
-          </div>
-        )}
+        {currentUser?.role === 'admin' ? (
+          <AdminPanel />
+        ) : (
+          <>
+            {activeTab === 'live' && (
+              <div className="space-y-4 sm:space-y-6 animate-fade-in">
+                <LiveControlPanel
+                  meetingUrl={meetingUrl}
+                  setMeetingUrl={setMeetingUrl}
+                  meetingTitle={meetingTitle}
+                  setMeetingTitle={setMeetingTitle}
+                  platform={platform}
+                  setPlatform={setPlatform}
+                  language={language}
+                  setLanguage={setLanguage}
+                  botState={botState}
+                  elapsedSeconds={elapsedSeconds}
+                  audioActive={audioActive}
+                  onJoin={handleJoin}
+                  onJoinClick={() => setShowModePicker(true)}
+                  onRecord={handleRecord}
+                  onPauseResume={handlePauseResume}
+                  onStop={handleStop}
+                  onLeave={handleLeave}
+                />
 
-        {activeTab === 'schedule' && (
-          <ScheduleList
-            schedules={schedules}
-            onAddSchedule={handleAddSchedule}
-            onDeleteSchedule={handleDeleteSchedule}
-            onStartSessionFromSchedule={onStartFromSchedule}
-            currentMeetingUrl={meetingUrl}
-            botState={botState}
-            onGoToLiveTab={() => setActiveTab('live')}
-          />
-        )}
+                {/* Show Processing Loader during batch processing */}
+                {isProcessingBatch && (
+                  <TranscriptProcessingLoader
+                    currentStep={batchProgress.step}
+                    currentMessage={batchProgress.message}
+                  />
+                )}
 
-        {activeTab === 'history' && (
-          <HistoryList
-            history={history}
-            onDeleteHistoryItem={handleDeleteHistoryItem}
-          />
+                {/* Always show LiveTranscriber container when not processing batch */}
+                {!isProcessingBatch && (
+                  <LiveTranscriber
+                    transcripts={transcripts}
+                    interimText={interimText}
+                    interimSpeaker={interimSpeaker}
+                    interimLanguage={interimLanguage}
+                    isRecording={botState === 'RECORDING'}
+                    liveTranscribeEnabled={transcribeMode !== 'background'}
+                    onExportDocx={handleExportDocx}
+                    onExportTxt={handleExportTxt}
+                    onClearTranscripts={handleClearTranscripts}
+                  />
+                )}
+              </div>
+            )}
+
+            {activeTab === 'schedule' && (
+              <ScheduleList
+                schedules={schedules}
+                onAddSchedule={handleAddSchedule}
+                onDeleteSchedule={handleDeleteSchedule}
+                onStartSessionFromSchedule={onStartFromSchedule}
+                currentMeetingUrl={meetingUrl}
+                botState={botState}
+                onGoToLiveTab={() => setActiveTab('live')}
+              />
+            )}
+
+            {activeTab === 'history' && (
+              <HistoryList
+                history={history}
+                onDeleteHistoryItem={handleDeleteHistoryItem}
+              />
+            )}
+          </>
         )}
       </main>
+
 
       {/* Footer */}
       <footer className="hidden sm:block border-t border-[#233863]/60 bg-[#0B1220]/90 backdrop-blur-2xl py-3.5 text-xs text-[#8A94A3] shadow-lg relative z-10">
@@ -228,20 +316,40 @@ export function App() {
           title: meetingTitle,
           platform,
           url: meetingUrl,
+          startTime: meetingStartTime,
+          date: meetingStartTime || new Date().toISOString(),
           elapsedSeconds,
-          vpnIp
+          vpnIp,
+          participants
         }}
         transcripts={transcripts}
-        onClose={() => setIsClosureOpen(false)}
+        onClose={() => {
+          setIsClosureOpen(false);
+          handleClearTranscripts();
+        }}
         onGoToHistory={() => {
           setIsClosureOpen(false);
+          handleClearTranscripts();
           setActiveTab('history');
         }}
       />
 
+
       <HotkeyGuideModal
         isOpen={isHotkeyGuideOpen}
         onClose={() => setIsHotkeyGuideOpen(false)}
+      />
+
+      {/* Transcribe Mode Picker Popup */}
+      <TranscribeModePicker
+        isOpen={showModePicker}
+        meetingTitle={meetingTitle}
+        onConfirm={(mode: TranscribeMode) => {
+          setTranscribeMode(mode);
+          setShowModePicker(false);
+          handleJoin();
+        }}
+        onCancel={() => setShowModePicker(false)}
       />
     </div>
   );

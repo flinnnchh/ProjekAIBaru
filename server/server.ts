@@ -3,12 +3,16 @@ import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { GoogleMeetAdapter } from './adapters/GoogleMeetAdapter';
-import { ZoomAdapter } from './adapters/ZoomAdapter';
-import { TeamsAdapter } from './adapters/TeamsAdapter';
-import { IMeetingBotAdapter } from './adapters/IMeetingBotAdapter';
-import { DeepgramService } from './deepgramService';
 import { VpnManager } from './vpnManager';
+import { connectDatabase } from './database';
+import { authRouter } from './auth/authRoutes';
+import { socketAuthMiddleware } from './auth/socketAuth';
+import { SessionManager } from './SessionManager';
+import { historyRouter } from './routes/historyRoutes';
+import { scheduleRouter } from './routes/scheduleRoutes';
+import { createAdminRouter } from './routes/adminRoutes';
+import driveRouter from './routes/driveRoutes';
+import { registerSocketHandlers } from './handlers/socketHandler';
 
 dotenv.config();
 
@@ -22,18 +26,29 @@ const io = new SocketIOServer(httpServer, {
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+
+// 1. Hubungkan ke MongoDB
+connectDatabase();
 
 const vpnManager = new VpnManager();
-const deepgramService = new DeepgramService(io);
-let activeBotAdapter: IMeetingBotAdapter | null = null;
+const sessionManager = new SessionManager(io);
 
-// REST API Endpoints
+// 2. Pasang REST API Routes
+app.use('/api/auth', authRouter);
+app.use('/api/history', historyRouter);
+app.use('/api/schedules', scheduleRouter);
+app.use('/api/admin', createAdminRouter(sessionManager));
+app.use('/api/drive', driveRouter);
+
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'AI Meeting Bot Orchestrator',
+    service: 'AI Meeting Bot Orchestrator (Multi-User)',
+    activeSessions: sessionManager.getActiveCount(),
+    maxCapacity: sessionManager.getMaxCapacity(),
   });
 });
 
@@ -41,84 +56,11 @@ app.get('/api/vpn-status', (req, res) => {
   res.json(vpnManager.getStatus());
 });
 
-// WebSocket Events
+// 3. Socket.IO Authentication & Multi-User Session Isolation
+io.use(socketAuthMiddleware);
+
 io.on('connection', (socket) => {
-  console.log(`[Socket.io] Client connected: ${socket.id}`);
-
-  socket.on('bot_join', async (data: { url: string; platform: string; title: string }) => {
-    console.log(`[Socket.io] Permintaan bot join diterima:`, data);
-
-    try {
-      if (data.platform === 'gmeet') {
-        activeBotAdapter = new GoogleMeetAdapter(io);
-      } else if (data.platform === 'zoom') {
-        activeBotAdapter = new ZoomAdapter();
-      } else {
-        activeBotAdapter = new TeamsAdapter();
-      }
-
-      socket.emit('bot_state_change', 'JOINING');
-      const success = await activeBotAdapter.join(data.url);
-
-      if (success) {
-        socket.emit('bot_state_change', 'IN_ROOM_STANDBY');
-        console.log(`[Socket.io] Status bot diperbarui -> IN_ROOM_STANDBY (Menunggu tombol 'RECORD' di Web Panel)`);
-      } else {
-        socket.emit('bot_state_change', 'ERROR');
-      }
-    } catch (err) {
-      console.error('[Socket.io] Error during bot join:', err);
-      socket.emit('bot_state_change', 'ERROR');
-    }
-  });
-
-  socket.on('bot_record', async (data?: { language?: string }) => {
-    const lang = data?.language || process.env.DEEPGRAM_LANGUAGE || 'id';
-    console.log(`[Socket.io] Memulai rekaman & STT (Language: ${lang})...`);
-    if (activeBotAdapter) {
-      try {
-        const audioStream = await activeBotAdapter.startAudioCapture();
-        deepgramService.startLiveStream(audioStream, 'default', lang);
-        socket.emit('bot_state_change', 'RECORDING');
-      } catch (err) {
-        console.error('[Socket.io] Error starting audio capture:', err);
-      }
-    }
-  });
-
-  socket.on('bot_pause', () => {
-    console.log(`[Socket.io] ⏸️ Menerima sinyal PAUSE dari frontend...`);
-    deepgramService.pauseStream();
-    socket.emit('bot_state_change', 'PAUSED');
-  });
-
-  socket.on('bot_resume', () => {
-    console.log(`[Socket.io] ▶️ Menerima sinyal RESUME dari frontend...`);
-    deepgramService.resumeStream();
-    socket.emit('bot_state_change', 'RECORDING');
-  });
-
-  socket.on('bot_stop', async () => {
-    console.log(`[Socket.io] Menghentikan rekaman...`);
-    if (activeBotAdapter) {
-      await activeBotAdapter.stopAudioCapture();
-      deepgramService.stopLiveStream();
-      socket.emit('bot_state_change', 'IN_ROOM_STANDBY');
-    }
-  });
-
-  socket.on('bot_leave', async () => {
-    console.log(`[Socket.io] Mengeluarkan bot dari room...`);
-    if (activeBotAdapter) {
-      await activeBotAdapter.leave();
-      activeBotAdapter = null;
-      socket.emit('bot_state_change', 'IDLE');
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`[Socket.io] Client disconnected: ${socket.id}`);
-  });
+  registerSocketHandlers(io, socket, sessionManager);
 });
 
 const PORT = process.env.PORT || 3001;
@@ -126,7 +68,6 @@ httpServer.on('error', (err: any) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`\n⚠️  Port ${PORT} sedang digunakan oleh instance server lain!`);
     console.error(`   Server backend sudah berjalan di terminal Anda yang lain.`);
-    console.error(`   Anda tidak perlu menjalankan 'npm start' / 'npm run server' dua kali.\n`);
   } else {
     console.error('[Server Error]:', err);
   }
@@ -134,9 +75,10 @@ httpServer.on('error', (err: any) => {
 
 httpServer.listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`  AI MEETING BOT ORCHESTRATOR SERVER RUNNING`);
+  console.log(`  AI MEETING BOT ORCHESTRATOR SERVER RUNNING (MULTI-USER)`);
   console.log(`  Port: http://localhost:${PORT}`);
   console.log(`  STT Engine: Deepgram Nova-2 Live Multilingual (ID + EN)`);
+  console.log(`  Max Concurrent Sessions: ${sessionManager.getMaxCapacity()}`);
   console.log(`  VPN Status: ${vpnManager.getStatus().assignedIp} (Connected)`);
   console.log(`======================================================\n`);
 });

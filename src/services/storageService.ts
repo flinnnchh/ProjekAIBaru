@@ -1,130 +1,193 @@
 import { ScheduledMeeting, MeetingHistory } from '../types/meeting';
+import { authService } from './authService';
 
-const SCHEDULES_KEY = 'ai_bot_schedules';
-const HISTORY_KEY = 'ai_bot_history';
+const API_BASE =
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3001/api'
+    : '/api';
+
+let cachedSchedules: ScheduledMeeting[] = [];
+let cachedHistory: MeetingHistory[] = [];
+
+/**
+ * Generates standard headers with JWT authorization token for API requests.
+ */
+function getAuthHeaders(): HeadersInit {
+  const token = authService.getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+/**
+ * Transforms raw backend schedule payload into strongly-typed ScheduledMeeting.
+ */
+function mapRawSchedule(raw: any): ScheduledMeeting {
+  return {
+    id: raw._id || raw.id,
+    title: raw.title,
+    platform: raw.platform,
+    url: raw.url,
+    scheduledTime: raw.scheduledTime,
+    autoRecord: Boolean(raw.autoRecord),
+    language: raw.language,
+    status: raw.status,
+    createdAt: raw.createdAt,
+  };
+}
+
+/**
+ * Transforms raw backend history payload into strongly-typed MeetingHistory.
+ */
+function mapRawHistory(raw: any): MeetingHistory {
+  return {
+    id: raw._id || raw.id,
+    title: raw.title,
+    platform: raw.platform,
+    url: raw.url,
+    date: raw.date,
+    durationSeconds: raw.durationSeconds || 0,
+    totalWords: raw.totalWords || 0,
+    speakersCount: raw.speakersCount || (raw.participants?.length || 1),
+    participants: Array.isArray(raw.participants) ? raw.participants : [],
+    languages: raw.languages || ['id', 'en', 'mixed'],
+    transcriptSnippet: raw.transcriptSnippet || '',
+    audioFileUrl: raw.audioFileUrl,
+    transcripts: (raw.transcripts || []).map((t: any, idx: number) => ({
+      id: t.id || `t-${idx}`,
+      speaker: t.speaker,
+      timestamp: t.timestamp,
+      text: t.text,
+      language: t.language || 'id',
+    })),
+  };
+}
+
 
 export const storageService = {
+  // ==========================================
+  // SCHEDULES (MongoDB)
+  // ==========================================
   getSchedules(): ScheduledMeeting[] {
-    const data = localStorage.getItem(SCHEDULES_KEY);
-    if (!data) {
-      // Default initial mock schedules
-      const initial: ScheduledMeeting[] = [
-        {
-          id: 'sch-1',
-          title: 'Sprint Planning Engineering Team',
-          platform: 'gmeet',
-          url: 'https://meet.google.com/abc-defg-hij',
-          scheduledTime: new Date(Date.now() + 3600000 * 2).toISOString(),
-          autoRecord: true,
-          status: 'UPCOMING',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'sch-2',
-          title: 'All Hands Business & Product Review',
-          platform: 'zoom',
-          url: 'https://zoom.us/j/9876543210',
-          scheduledTime: new Date(Date.now() + 3600000 * 24).toISOString(),
-          autoRecord: true,
-          status: 'UPCOMING',
-          createdAt: new Date().toISOString()
-        }
-      ];
-      localStorage.setItem(SCHEDULES_KEY, JSON.stringify(initial));
-      return initial;
-    }
+    return cachedSchedules;
+  },
+
+  async fetchSchedules(): Promise<ScheduledMeeting[]> {
     try {
-      return JSON.parse(data);
-    } catch {
-      return [];
+      const res = await fetch(`${API_BASE}/schedules`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.schedules)) {
+        cachedSchedules = data.schedules.map(mapRawSchedule);
+      }
+    } catch (err) {
+      console.warn('[Storage] Gagal mengambil jadwal dari MongoDB:', err);
     }
+    return cachedSchedules;
   },
 
-  saveSchedules(schedules: ScheduledMeeting[]): void {
-    localStorage.setItem(SCHEDULES_KEY, JSON.stringify(schedules));
-  },
+  async addSchedule(schedule: Omit<ScheduledMeeting, 'id' | 'createdAt'>): Promise<ScheduledMeeting> {
+    try {
+      const res = await fetch(`${API_BASE}/schedules`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(schedule),
+      });
+      const data = await res.json();
+      if (data.success && data.schedule) {
+        const newItem = mapRawSchedule(data.schedule);
+        cachedSchedules.unshift(newItem);
+        return newItem;
+      }
+    } catch (err) {
+      console.warn('[Storage] Gagal menambah jadwal ke MongoDB:', err);
+    }
 
-  addSchedule(schedule: Omit<ScheduledMeeting, 'id' | 'createdAt'>): ScheduledMeeting {
-    const list = this.getSchedules();
-    const newItem: ScheduledMeeting = {
+    // Local fallback
+    const fallback: ScheduledMeeting = {
       ...schedule,
       id: `sch-${Date.now()}`,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    list.unshift(newItem);
-    this.saveSchedules(list);
-    return newItem;
+    cachedSchedules.unshift(fallback);
+    return fallback;
   },
 
-  deleteSchedule(id: string): void {
-    const list = this.getSchedules().filter((s) => s.id !== id);
-    this.saveSchedules(list);
-  },
+  async updateSchedule(id: string, updates: Partial<ScheduledMeeting>): Promise<void> {
+    cachedSchedules = cachedSchedules.map((s) => (s.id === id ? { ...s, ...updates } : s));
 
-  updateSchedule(id: string, updates: Partial<ScheduledMeeting>): void {
-    const list = this.getSchedules().map((s) => s.id === id ? { ...s, ...updates } : s);
-    this.saveSchedules(list);
-  },
-
-  getHistory(): MeetingHistory[] {
-    const data = localStorage.getItem(HISTORY_KEY);
-    if (!data) {
-      // Mock historical data
-      const initial: MeetingHistory[] = [
-        {
-          id: 'hist-1',
-          title: 'Weekly Standup & AI Engine Roadmap',
-          platform: 'gmeet',
-          url: 'https://meet.google.com/xyz-uvwx-rst',
-          date: new Date(Date.now() - 86400000 * 2).toISOString(),
-          durationSeconds: 1640,
-          totalWords: 1420,
-          speakersCount: 3,
-          languages: ['id', 'en', 'mixed'],
-          transcriptSnippet: 'Kita sepakat untuk integrasi Deepgram Nova-2 selesai minggu ini...',
-          transcripts: [
-            {
-              id: 't-1',
-              speaker: 'Speaker 1 (Host)',
-              timestamp: '00:00:15',
-              text: 'Selamat pagi rekan-rekan sekalian, mari kita mulai weekly review hari ini.',
-              language: 'id'
-            },
-            {
-              id: 't-2',
-              speaker: 'Speaker 2 (AI Engineer)',
-              timestamp: '00:00:48',
-              text: 'Good morning. Regarding the STT engine, we have implemented the Deepgram WebSocket with code-switching support.',
-              language: 'en'
-            },
-            {
-              id: 't-3',
-              speaker: 'Speaker 3 (Product Manager)',
-              timestamp: '00:01:20',
-              text: 'Keren banget, tolong make sure fitur export ke Word .docx dan .txt sudah ada template resminya.',
-              language: 'mixed'
-            }
-          ]
-        }
-      ];
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(initial));
-      return initial;
-    }
     try {
-      return JSON.parse(data);
-    } catch {
-      return [];
+      await fetch(`${API_BASE}/schedules/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updates),
+      });
+    } catch (err) {
+      console.warn('[Storage] Gagal update jadwal di MongoDB:', err);
     }
   },
 
-  saveHistoryItem(historyItem: MeetingHistory): void {
-    const list = this.getHistory();
-    list.unshift(historyItem);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  async deleteSchedule(id: string): Promise<void> {
+    cachedSchedules = cachedSchedules.filter((s) => s.id !== id);
+
+    try {
+      await fetch(`${API_BASE}/schedules/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch (err) {
+      console.warn('[Storage] Gagal hapus jadwal di MongoDB:', err);
+    }
   },
 
-  deleteHistoryItem(id: string): void {
-    const list = this.getHistory().filter((h) => h.id !== id);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
-  }
+  // ==========================================
+  // HISTORY (MongoDB)
+  // ==========================================
+  getHistory(): MeetingHistory[] {
+    return cachedHistory;
+  },
+
+  async fetchHistory(): Promise<MeetingHistory[]> {
+    try {
+      const res = await fetch(`${API_BASE}/history`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.history)) {
+        cachedHistory = data.history.map(mapRawHistory);
+      }
+    } catch (err) {
+      console.warn('[Storage] Gagal mengambil riwayat dari MongoDB:', err);
+    }
+    return cachedHistory;
+  },
+
+  async saveHistoryItem(historyItem: MeetingHistory): Promise<void> {
+    cachedHistory.unshift(historyItem);
+
+    try {
+      await fetch(`${API_BASE}/history`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(historyItem),
+      });
+    } catch (err) {
+      console.warn('[Storage] Gagal menyimpan riwayat ke MongoDB:', err);
+    }
+  },
+
+  async deleteHistoryItem(id: string): Promise<void> {
+    cachedHistory = cachedHistory.filter((h) => h.id !== id);
+
+    try {
+      await fetch(`${API_BASE}/history/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+    } catch (err) {
+      console.warn('[Storage] Gagal hapus riwayat di MongoDB:', err);
+    }
+  },
 };

@@ -6,6 +6,7 @@ export type BotState =
   | 'IN_ROOM_STANDBY'// Sudah di dalam room, belum merekam
   | 'RECORDING'      // Sedang merekam & transkripsi live aktif
   | 'PAUSED'         // Rekaman dijeda sementara
+  | 'PROCESSING'     // Sedang batch processing transkrip AI
   | 'LEAVING'        // Keluar dari room
   | 'ERROR';         // Terjadi error koneksi
 
@@ -16,6 +17,7 @@ export interface MeetingSession {
   url: string;
   platform: MeetingPlatform;
   botState: BotState;
+  date?: string;
   startTime?: string;
   recordStartTime?: string;
   elapsedSeconds: number;
@@ -24,6 +26,7 @@ export interface MeetingSession {
   vpnIp?: string;
   activeSpeakers: number;
   totalWords: number;
+  participants?: string[];
 }
 
 export interface ScheduledMeeting {
@@ -47,6 +50,7 @@ export interface MeetingHistory {
   durationSeconds: number;
   totalWords: number;
   speakersCount: number;
+  participants?: string[];
   languages: ('id' | 'en' | 'mixed')[];
   transcriptSnippet: string;
   audioFileUrl?: string;
@@ -58,3 +62,4 @@ export interface MeetingHistory {
     language: 'id' | 'en' | 'mixed';
   }>;
 }
+

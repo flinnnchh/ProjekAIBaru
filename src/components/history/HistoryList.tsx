@@ -3,6 +3,7 @@ import { MaterialIcon } from '../common/MaterialIcon';
 import { MeetingHistory } from '../../types/meeting';
 import { Badge } from '../common/Badge';
 import { TranscriptViewerModal } from './TranscriptViewerModal';
+import { ConfirmDeleteModal } from '../common/ConfirmDeleteModal';
 import { exportToDocx } from '../../services/exportDocx';
 import { exportToTxt } from '../../services/exportTxt';
 import { TranscriptItem } from '../../types/transcript';
@@ -15,6 +16,7 @@ interface HistoryListProps {
 export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHistoryItem }) => {
   const [search, setSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState<MeetingHistory | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const filteredHistory = history.filter((h) => {
     return (
@@ -51,7 +53,15 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
   const handleQuickDocx = (e: React.MouseEvent, item: MeetingHistory) => {
     e.stopPropagation();
     exportToDocx(
-      { title: item.title, platform: item.platform, url: item.url, elapsedSeconds: item.durationSeconds, vpnIp: '10.24.0.12' },
+      {
+        title: item.title,
+        platform: item.platform,
+        url: item.url,
+        date: item.date,
+        elapsedSeconds: item.durationSeconds,
+        vpnIp: '10.24.0.12',
+        participants: item.participants,
+      },
       makeTranscriptItems(item)
     );
   };
@@ -59,10 +69,19 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
   const handleQuickTxt = (e: React.MouseEvent, item: MeetingHistory) => {
     e.stopPropagation();
     exportToTxt(
-      { title: item.title, platform: item.platform, url: item.url, elapsedSeconds: item.durationSeconds, vpnIp: '10.24.0.12' },
+      {
+        title: item.title,
+        platform: item.platform,
+        url: item.url,
+        date: item.date,
+        elapsedSeconds: item.durationSeconds,
+        vpnIp: '10.24.0.12',
+        participants: item.participants,
+      },
       makeTranscriptItems(item)
     );
   };
+
 
   return (
     <div className="space-y-4 animate-slide-up">
@@ -133,7 +152,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteHistoryItem(item.id);
+                        setDeleteTargetId(item.id);
                       }}
                       className="text-[#6B7585] hover:text-[#FF8E9D] p-1.5 rounded-xl hover:bg-[#7A2530]/10 transition-all duration-200 active:scale-90"
                       title="Hapus Riwayat"
@@ -146,16 +165,25 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
                     {item.title}
                   </h3>
 
-                  <div className="flex items-center gap-3 text-xs text-[#8A94A3] mt-1.5 font-mono">
+                  <div className="flex items-center gap-3 text-xs text-[#8A94A3] mt-1.5 font-mono flex-wrap">
                     <span className="flex items-center gap-1">
                       <MaterialIcon icon="timer" size="xs" className="text-[#3DD6E8]" />
                       {mins}m {secs}s
                     </span>
                     <span className="text-[#233863]">•</span>
-                    <span>{new Date(item.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    <span className="flex items-center gap-1">
+                      <MaterialIcon icon="calendar_today" size="xs" className="text-[#8A94A3]" />
+                      {new Date(item.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', year: 'numeric' })} {new Date(item.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                    </span>
                     <span className="text-[#233863]">•</span>
                     <span className="text-white font-bold">{item.totalWords} Kata</span>
+                    <span className="text-[#233863]">•</span>
+                    <span className="text-[#3DD6E8] flex items-center gap-1">
+                      <MaterialIcon icon="group" size="xs" />
+                      {item.participants?.length || item.speakersCount} Peserta
+                    </span>
                   </div>
+
 
                   <p className="mt-2.5 text-xs text-[#8A94A3] italic bg-[#0B1220] p-3 rounded-xl border border-[#233863] line-clamp-2 leading-relaxed">
                     "{item.transcriptSnippet}"
@@ -194,6 +222,16 @@ export const HistoryList: React.FC<HistoryListProps> = ({ history, onDeleteHisto
       <TranscriptViewerModal
         historyItem={selectedItem}
         onClose={() => setSelectedItem(null)}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={() => {
+          if (deleteTargetId) onDeleteHistoryItem(deleteTargetId);
+        }}
+        title="Hapus Riwayat Transkrip?"
+        message="Seluruh data transkrip pada sesi ini akan dihapus secara permanen dan tidak dapat dikembalikan. Yakin ingin melanjutkan?"
       />
     </div>
   );

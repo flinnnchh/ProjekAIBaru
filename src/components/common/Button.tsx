@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'accent' | 'secondary' | 'danger' | 'warning' | 'success' | 'outline' | 'ghost' | 'navy' | 'tonal';
@@ -114,7 +115,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {loading ? (
-        <span className="material-symbols-outlined icon-sm animate-spin">progress_activity</span>
+        <Loader2 size={16} className="animate-spin" />
       ) : (
         icon
       )}
