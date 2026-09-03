@@ -44,6 +44,12 @@ export function useMeetingBot(userId?: string) {
   }, [transcribeMode]);
 
   const audioDecayTimerRef = useRef<number | null>(null);
+  const participantsRef = useRef<string[]>([]);
+  const liveSpeakerMapRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
 
   const pulseAudioActivity = useCallback(() => {
     setAudioActive(true);
@@ -68,18 +74,35 @@ export function useMeetingBot(userId?: string) {
         // Suara terdengar dan menghasilkan transkrip -> aktifkan visualizer audio
         pulseAudioActivity();
 
+        // Resolusi speaker ke nama partisipan riil secara dinamis
+        let currentSpeaker = (newTranscript.speaker || '').trim();
+        const match = currentSpeaker.match(/^Speaker\s*(\d+)$/i);
+        if (match && participantsRef.current.length > 0) {
+          const rawTag = currentSpeaker.toLowerCase();
+          if (!liveSpeakerMapRef.current.has(rawTag)) {
+            const assigned = participantsRef.current[liveSpeakerMapRef.current.size % participantsRef.current.length];
+            liveSpeakerMapRef.current.set(rawTag, assigned);
+          }
+          currentSpeaker = liveSpeakerMapRef.current.get(rawTag) || currentSpeaker;
+        }
+
+        const mappedTranscript: TranscriptItem = {
+          ...newTranscript,
+          speaker: currentSpeaker,
+        };
+
         // Track speaker as participant (filtered)
-        if (newTranscript.speaker) {
-          const cleaned = filterAndDeduplicateParticipants([newTranscript.speaker]);
+        if (mappedTranscript.speaker) {
+          const cleaned = filterAndDeduplicateParticipants([mappedTranscript.speaker]);
           if (cleaned.length > 0) {
             setParticipants((prev: string[]) => filterAndDeduplicateParticipants([...prev, ...cleaned]));
           }
         }
 
         // Selalu simpan di buffer fallback sebagai jaring pengaman
-        if (newTranscript.isFinal) {
-          if (!fallbackTranscriptsRef.current.some((p: TranscriptItem) => p.id === newTranscript.id)) {
-            fallbackTranscriptsRef.current.push(newTranscript);
+        if (mappedTranscript.isFinal) {
+          if (!fallbackTranscriptsRef.current.some((p: TranscriptItem) => p.id === mappedTranscript.id)) {
+            fallbackTranscriptsRef.current.push(mappedTranscript);
           }
         }
 
@@ -88,17 +111,17 @@ export function useMeetingBot(userId?: string) {
           return;
         }
 
-        if (!newTranscript.isFinal) {
+        if (!mappedTranscript.isFinal) {
           // Interim realtime stream
-          setInterimText(newTranscript.text);
-          setInterimSpeaker(newTranscript.speaker);
-          setInterimLanguage(newTranscript.language || 'en');
+          setInterimText(mappedTranscript.text);
+          setInterimSpeaker(mappedTranscript.speaker);
+          setInterimLanguage(mappedTranscript.language || 'en');
         } else {
           // Final confirmed transcript
           setTranscripts((prev: TranscriptItem[]) => {
             // Hindari duplikasi jika id sudah ada
-            if (prev.some((p: TranscriptItem) => p.id === newTranscript.id)) return prev;
-            return [...prev, newTranscript];
+            if (prev.some((p: TranscriptItem) => p.id === mappedTranscript.id)) return prev;
+            return [...prev, mappedTranscript];
           });
           setInterimText('');
         }
@@ -300,10 +323,10 @@ export function useMeetingBot(userId?: string) {
   }, [botState]);
 
   // Ref untuk batch result handler (agar bisa diakses dari useEffect initSocket)
-  const handleBatchResultRef = useRef<((data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[] }) => void) | null>(null);
+  const handleBatchResultRef = useRef<((data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[]; presenter?: string }) => void) | null>(null);
 
   // Handler batch result
-  const handleBatchResult = useCallback((data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[] }) => {
+  const handleBatchResult = useCallback((data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[]; presenter?: string }) => {
     setIsProcessingBatch(false);
     setInterimText('');
 
@@ -312,22 +335,45 @@ export function useMeetingBot(userId?: string) {
       ? data.transcripts
       : (fallbackTranscriptsRef.current.length > 0 ? fallbackTranscriptsRef.current : transcripts);
 
-    const verifiedParticipants = data.participants && data.participants.length > 0
+    let verifiedParticipants = data.participants && data.participants.length > 0
       ? filterAndDeduplicateParticipants(data.participants)
       : filterAndDeduplicateParticipants(participants);
 
+    // Jika presenter terdeteksi (sedang share screen), pastikan presenter berada di index 0
+    if (data.presenter) {
+      const cleanedPres = data.presenter.trim();
+      const pIdx = verifiedParticipants.findIndex(p => p.toLowerCase() === cleanedPres.toLowerCase());
+      if (pIdx > 0) {
+        const [pres] = verifiedParticipants.splice(pIdx, 1);
+        verifiedParticipants.unshift(pres);
+      } else if (pIdx === -1) {
+        verifiedParticipants.unshift(cleanedPres);
+      }
+    }
+
     setParticipants(verifiedParticipants);
 
-    // Map 'Speaker 0', 'Speaker 1', etc. to actual human participant names
+    // Dynamic 1-to-1 speaker mapping:
+    // Setiap tag 'Speaker 1', 'Speaker 2', dll dipetakan ke partisipan manusia yang berbeda secara berurutan
+    const batchSpeakerMap = new Map<string, string>();
+    let participantCursor = 0;
+
     const finalTranscripts = rawTranscripts.map((t: TranscriptItem) => {
-      let spk = t.speaker || '';
+      let spk = (t.speaker || '').trim();
       const match = spk.match(/^Speaker\s*(\d+)$/i);
+
       if (match && verifiedParticipants.length > 0) {
-        const idx = parseInt(match[1], 10);
-        spk = verifiedParticipants[idx] || verifiedParticipants[idx % verifiedParticipants.length];
+        const rawTag = spk.toLowerCase();
+        if (!batchSpeakerMap.has(rawTag)) {
+          const human = verifiedParticipants[participantCursor % verifiedParticipants.length];
+          batchSpeakerMap.set(rawTag, human);
+          participantCursor++;
+        }
+        spk = batchSpeakerMap.get(rawTag) || spk;
       } else if (spk.toLowerCase() === 'speaker' && verifiedParticipants.length > 0) {
         spk = verifiedParticipants[0];
       }
+
       return {
         ...t,
         speaker: spk,
@@ -375,13 +421,31 @@ export function useMeetingBot(userId?: string) {
       setIsProcessingBatch(false);
       setBotState('IN_ROOM_STANDBY');
 
+      const fallbackSpeakerMap = new Map<string, string>();
+      let cursor = 0;
+      const finalTranscripts = transcripts.map((t: TranscriptItem) => {
+        let spk = (t.speaker || '').trim();
+        const match = spk.match(/^Speaker\s*(\d+)$/i);
+        if (match && participants.length > 0) {
+          const rawTag = spk.toLowerCase();
+          if (!fallbackSpeakerMap.has(rawTag)) {
+            fallbackSpeakerMap.set(rawTag, participants[cursor % participants.length]);
+            cursor++;
+          }
+          spk = fallbackSpeakerMap.get(rawTag) || spk;
+        } else if (spk.toLowerCase() === 'speaker' && participants.length > 0) {
+          spk = participants[0];
+        }
+        return { ...t, speaker: spk };
+      });
+
       const newHistoryItem = createMeetingHistoryItem({
         title: meetingTitle,
         platform,
         url: meetingUrl,
         date: meetingStartTime || new Date().toISOString(),
         elapsedSeconds,
-        transcripts,
+        transcripts: finalTranscripts,
         participants,
       });
 
@@ -403,6 +467,7 @@ export function useMeetingBot(userId?: string) {
     setTranscribeMode(null);
     setMeetingStartTime('');
     setParticipants([]);
+    liveSpeakerMapRef.current.clear();
 
     // Update status jadwal menjadi COMPLETED jika bot keluar dari room
     if (activeScheduleIdRef.current) {

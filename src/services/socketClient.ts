@@ -11,9 +11,9 @@ export const initSocket = (
   onStateUpdate: (state: BotState) => void,
   onSpeakerAudio: (active: boolean) => void,
   onBatchProgress?: (step: number, message: string) => void,
-  onBatchResult?: (data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[] }) => void,
+  onBatchResult?: (data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[]; presenter?: string }) => void,
   onServerError?: (message: string) => void,
-  onParticipantsUpdate?: (data: { count: number; participants: string[] }) => void
+  onParticipantsUpdate?: (data: { count: number; participants: string[]; presenter?: string }) => void
 ) => {
 
   try {
@@ -63,7 +63,7 @@ export const initSocket = (
       setTimeout(() => onSpeakerAudio(false), 800);
     });
 
-    socket.on('participants_update', (data: { count: number; participants: string[] }) => {
+    socket.on('participants_update', (data: { count: number; participants: string[]; presenter?: string }) => {
       console.log('[Socket] Partisipan terupdate:', data);
       onParticipantsUpdate?.(data);
     });
@@ -83,8 +83,8 @@ export const initSocket = (
       onBatchProgress?.(data.step, data.message);
     });
 
-    socket.on('batch_result', (data: { success: boolean; transcripts: TranscriptItem[] }) => {
-      console.log(`[Socket] Batch result diterima: success=${data.success}, items=${data.transcripts.length}`);
+    socket.on('batch_result', (data: { success: boolean; transcripts: TranscriptItem[]; participants?: string[]; presenter?: string }) => {
+      console.log(`[Socket] Batch result diterima: success=${data.success}, items=${data.transcripts.length}, presenter=${data.presenter}`);
       onBatchResult?.(data);
     });
 

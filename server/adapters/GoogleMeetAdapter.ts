@@ -18,6 +18,7 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
   private discoveredParticipants = new Set<string>();
   private participantPollTicks = 0;
   private botDisplayName: string = process.env.BOT_DISPLAY_NAME || 'AI Note-Taker Bot';
+  public currentPresenter: string | null = null;
 
   constructor(private io?: SocketIOServer) {}
 
@@ -641,32 +642,36 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
       return false;
     };
 
-    const cleanedList = rawNames
-      .map((n) => {
-        let s = (n || '').trim();
-        // Remove annotations e.g. (You), (Your presentation), (Meeting host), etc.
-        s = s.replace(/\s*\((?:You|Anda|Your presentation|Presenting|Mempresentasikan|Presentation|Host|Meeting host|Penyelenggara|annot[^\)]*)\)/gi, '').trim();
-        s = s.replace(/(?:Your presentation|Meeting host|Mempresentasikan)/gi, '').trim();
-        s = s.replace(/[\r\n\t]+/g, ' ').trim();
-        return s;
-      })
-      .filter((n) => n.length > 1 && !isIconOrSystemWord(n) && !isBot(n));
+    const cleanedList: string[] = [];
+    for (const n of rawNames) {
+      let s = (n || '').trim();
+      // Remove annotations e.g. (You), (Your presentation), (Meeting host), etc.
+      s = s.replace(/\s*\((?:You|Anda|Your presentation|Presenting|Mempresentasikan|Presentation|Host|Meeting host|Penyelenggara|annot[^\)]*)\)/gi, '').trim();
+      s = s.replace(/(?:Your presentation|Meeting host|Mempresentasikan)/gi, '').trim();
+      s = s.replace(/[\r\n\t]+/g, ' ').trim();
+      if (s.length > 1 && !isIconOrSystemWord(s) && !isBot(s)) {
+        cleanedList.push(s);
+      }
+    }
 
-    // Sort descending by length to prioritize full names over truncated ones
-    const sorted = Array.from(new Set(cleanedList)).sort((a, b) => b.length - a.length);
-    const result: string[] = [];
+    // Resolusi nama terpotong dari kandidat nama terpanjang
+    const fullCandidates = Array.from(new Set(cleanedList)).sort((a, b) => b.length - a.length);
 
-    for (const candidate of sorted) {
-      const cleanCand = candidate.replace(/\.{2,}$/, '').trim().toLowerCase();
-      if (!cleanCand || isIconOrSystemWord(cleanCand) || isBot(cleanCand)) continue;
-
-      const alreadyCovered = result.some((existing) => {
-        const cleanExisting = existing.toLowerCase();
-        return cleanExisting.startsWith(cleanCand) || cleanExisting.includes(cleanCand);
+    const resolveCanonical = (name: string): string => {
+      const cleanCand = name.replace(/\.{2,}$/, '').trim().toLowerCase();
+      if (!cleanCand) return name;
+      const match = fullCandidates.find((full) => {
+        const lowerFull = full.toLowerCase();
+        return lowerFull !== cleanCand && (lowerFull.startsWith(cleanCand) || lowerFull.includes(cleanCand));
       });
+      return match || name.replace(/\.{2,}$/, '').trim();
+    };
 
-      if (!alreadyCovered) {
-        result.push(candidate.replace(/\.{2,}$/, '').trim());
+    const result: string[] = [];
+    for (const item of cleanedList) {
+      const canonical = resolveCanonical(item);
+      if (canonical && !result.some((existing) => existing.toLowerCase() === canonical.toLowerCase())) {
+        result.push(canonical);
       }
     }
 
@@ -684,8 +689,9 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
       if (!this.page) return;
 
       try {
-        const domNames = await this.page.evaluate(() => {
+        const scanData = await this.page.evaluate(() => {
           const names: string[] = [];
+          let presenter: string | null = null;
 
           // Helper to check if node is an icon
           const isIconNode = (el: Element) => {
@@ -694,6 +700,17 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
             if (el.getAttribute('aria-hidden') === 'true') return true;
             return false;
           };
+
+          // 0. Deteksi Presenter / Share Screen Tile
+          const allTextEls = document.querySelectorAll('span.zWGUib, span[jsname="W297wb"], div.cS7aqe, div[data-self-name], div[role="listitem"]');
+          allTextEls.forEach((el) => {
+            const txt = (el.textContent || '').trim();
+            const presMatch = txt.match(/^(.*?)\s*\((?:Presentation|Mempresentasikan|Your presentation|Presentasi Anda)\)/i) ||
+                             txt.match(/^(.*?)\s+(?:is presenting|sedang mempresentasikan)/i);
+            if (presMatch && presMatch[1]?.trim() && !presenter) {
+              presenter = presMatch[1].trim();
+            }
+          });
 
           // 1. Top bar presentation / active speaker / self badge
           const topLabels = document.querySelectorAll('div[data-self-name]');
@@ -729,23 +746,42 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
             }
           });
 
-          return Array.from(new Set(names));
-        }).catch(() => [] as string[]);
+          return { names: Array.from(new Set(names)), presenter };
+        }).catch(() => ({ names: [] as string[], presenter: null as string | null }));
 
-        if (domNames && Array.isArray(domNames)) {
-          domNames.forEach((n) => {
+        if (scanData.names && Array.isArray(scanData.names)) {
+          scanData.names.forEach((n) => {
             if (n && typeof n === 'string') {
               this.discoveredParticipants.add(n);
             }
           });
         }
 
-        const filtered = this.cleanAndFilterParticipants(Array.from(this.discoveredParticipants));
+        if (scanData.presenter) {
+          const cleanedPres = this.cleanAndFilterParticipants([scanData.presenter])[0];
+          if (cleanedPres) {
+            this.currentPresenter = cleanedPres;
+          }
+        }
+
+        let filtered = this.cleanAndFilterParticipants(Array.from(this.discoveredParticipants));
+
+        // Jika ada presenter terdeteksi (sedang share screen), tempatkan di posisi utama
+        if (this.currentPresenter) {
+          const pIdx = filtered.findIndex((p) => p.toLowerCase() === this.currentPresenter?.toLowerCase());
+          if (pIdx > 0) {
+            const [pres] = filtered.splice(pIdx, 1);
+            filtered.unshift(pres);
+          } else if (pIdx === -1) {
+            filtered.unshift(this.currentPresenter);
+          }
+        }
 
         if (this.io && filtered.length > 0) {
           this.io.emit('participants_update', {
             count: filtered.length,
             participants: filtered,
+            presenter: this.currentPresenter,
           });
         }
       } catch (err) {}
@@ -820,6 +856,16 @@ export class GoogleMeetAdapter implements IMeetingBotAdapter {
     }
 
     const filtered = this.cleanAndFilterParticipants(Array.from(this.discoveredParticipants));
+
+    if (this.currentPresenter) {
+      const pIdx = filtered.findIndex((p) => p.toLowerCase() === this.currentPresenter?.toLowerCase());
+      if (pIdx > 0) {
+        const [pres] = filtered.splice(pIdx, 1);
+        filtered.unshift(pres);
+      } else if (pIdx === -1) {
+        filtered.unshift(this.currentPresenter);
+      }
+    }
 
     if (filtered.length > 0) {
       return filtered.map((name, idx) => ({

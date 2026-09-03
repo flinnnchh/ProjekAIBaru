@@ -78,31 +78,36 @@ export function filterAndDeduplicateParticipants(rawNames: string[]): string[] {
     return false;
   };
 
-  // 1. Clean annotations and filter bots
-  const cleanedList = rawNames
-    .map((n) => {
-      let s = (n || '').trim();
-      s = s.replace(/\s*\((?:You|Anda|Presenting|Mempresentasikan|Presentation|Host|Penyelenggara|annot[^\)]*)\)/gi, '').trim();
-      s = s.replace(/[\r\n\t]+/g, ' ').trim();
-      return s;
-    })
-    .filter((n) => n.length > 1 && !isBot(n));
+  // 1. Bersihkan anotasi sistem e.g. (You), (Presenting), dll tanpa merusak urutan asli
+  const cleanedList: string[] = [];
+  for (const n of rawNames) {
+    let s = (n || '').trim();
+    s = s.replace(/\s*\((?:You|Anda|Your presentation|Presenting|Mempresentasikan|Presentation|Host|Penyelenggara|annot[^\)]*)\)/gi, '').trim();
+    s = s.replace(/(?:Your presentation|Meeting host|Mempresentasikan)/gi, '').trim();
+    s = s.replace(/[\r\n\t]+/g, ' ').trim();
+    if (s.length > 1 && !isBot(s)) {
+      cleanedList.push(s);
+    }
+  }
 
-  // 2. Sort descending by length to prioritize full names over truncated ones
-  const sorted = Array.from(new Set(cleanedList)).sort((a, b) => b.length - a.length);
-  const result: string[] = [];
+  // 2. Cari nama utuh untuk menyelesaikan nama yang terpotong (e.g. "Eflin Hut..." -> "Eflin Hutapea")
+  const fullCandidates = Array.from(new Set(cleanedList)).sort((a, b) => b.length - a.length);
 
-  for (const candidate of sorted) {
-    const cleanCand = candidate.replace(/\.{2,}$/, '').trim().toLowerCase();
-    if (!cleanCand) continue;
-
-    const alreadyCovered = result.some((existing) => {
-      const cleanExisting = existing.toLowerCase();
-      return cleanExisting.startsWith(cleanCand) || cleanExisting.includes(cleanCand);
+  const resolveCanonical = (name: string): string => {
+    const cleanCand = name.replace(/\.{2,}$/, '').trim().toLowerCase();
+    if (!cleanCand) return name;
+    const match = fullCandidates.find((full) => {
+      const lowerFull = full.toLowerCase();
+      return lowerFull !== cleanCand && (lowerFull.startsWith(cleanCand) || lowerFull.includes(cleanCand));
     });
+    return match || name.replace(/\.{2,}$/, '').trim();
+  };
 
-    if (!alreadyCovered) {
-      result.push(candidate.replace(/\.{2,}$/, '').trim());
+  const result: string[] = [];
+  for (const item of cleanedList) {
+    const canonical = resolveCanonical(item);
+    if (canonical && !result.some((existing) => existing.toLowerCase() === canonical.toLowerCase())) {
+      result.push(canonical);
     }
   }
 

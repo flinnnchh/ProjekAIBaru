@@ -192,18 +192,22 @@ export function registerSocketHandlers(
       const participantsInfo = await session.adapter.getParticipants();
       const finalParticipantNames = participantsInfo.map((p) => p.name);
 
+      const currentPresenter = (session.adapter as any).currentPresenter || null;
+
       if (batchTranscripts.length > 0) {
         socket.emit('batch_result', {
           success: true,
           transcripts: batchTranscripts,
           participants: finalParticipantNames,
+          presenter: currentPresenter,
         });
-        console.log(`[Socket.io] [User: ${user.displayName}] ✅ Batch result dikirim: ${batchTranscripts.length} entries | ${finalParticipantNames.length} peserta:`, finalParticipantNames);
+        console.log(`[Socket.io] [User: ${user.displayName}] ✅ Batch result dikirim: ${batchTranscripts.length} entries | ${finalParticipantNames.length} peserta:`, finalParticipantNames, currentPresenter ? `(Presenter: ${currentPresenter})` : '');
       } else {
         socket.emit('batch_result', {
           success: false,
           transcripts: [],
           participants: finalParticipantNames,
+          presenter: currentPresenter,
         });
       }
 
