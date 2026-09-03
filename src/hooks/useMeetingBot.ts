@@ -44,12 +44,6 @@ export function useMeetingBot(userId?: string) {
   }, [transcribeMode]);
 
   const audioDecayTimerRef = useRef<number | null>(null);
-  const participantsRef = useRef<string[]>([]);
-  const liveSpeakerMapRef = useRef<Map<string, string>>(new Map());
-
-  useEffect(() => {
-    participantsRef.current = participants;
-  }, [participants]);
 
   const pulseAudioActivity = useCallback(() => {
     setAudioActive(true);
@@ -74,16 +68,14 @@ export function useMeetingBot(userId?: string) {
         // Suara terdengar dan menghasilkan transkrip -> aktifkan visualizer audio
         pulseAudioActivity();
 
-        // Resolusi speaker ke nama partisipan riil secara dinamis
+        // Pertahankan format speaker sebagai 'Speaker 1', 'Speaker 2', dst. sesuai deteksi Deepgram Nova-2
         let currentSpeaker = (newTranscript.speaker || '').trim();
         const match = currentSpeaker.match(/^Speaker\s*(\d+)$/i);
-        if (match && participantsRef.current.length > 0) {
-          const rawTag = currentSpeaker.toLowerCase();
-          if (!liveSpeakerMapRef.current.has(rawTag)) {
-            const assigned = participantsRef.current[liveSpeakerMapRef.current.size % participantsRef.current.length];
-            liveSpeakerMapRef.current.set(rawTag, assigned);
-          }
-          currentSpeaker = liveSpeakerMapRef.current.get(rawTag) || currentSpeaker;
+        if (match) {
+          const num = parseInt(match[1], 10);
+          currentSpeaker = `Speaker ${num === 0 ? 1 : num}`;
+        } else if (!currentSpeaker) {
+          currentSpeaker = 'Speaker 1';
         }
 
         const mappedTranscript: TranscriptItem = {
@@ -353,25 +345,15 @@ export function useMeetingBot(userId?: string) {
 
     setParticipants(verifiedParticipants);
 
-    // Dynamic 1-to-1 speaker mapping:
-    // Setiap tag 'Speaker 1', 'Speaker 2', dll dipetakan ke partisipan manusia yang berbeda secara berurutan
-    const batchSpeakerMap = new Map<string, string>();
-    let participantCursor = 0;
-
+    // Pertahankan label pembicara 'Speaker 1', 'Speaker 2', dst. sesuai deteksi Deepgram Nova-2
     const finalTranscripts = rawTranscripts.map((t: TranscriptItem) => {
       let spk = (t.speaker || '').trim();
       const match = spk.match(/^Speaker\s*(\d+)$/i);
-
-      if (match && verifiedParticipants.length > 0) {
-        const rawTag = spk.toLowerCase();
-        if (!batchSpeakerMap.has(rawTag)) {
-          const human = verifiedParticipants[participantCursor % verifiedParticipants.length];
-          batchSpeakerMap.set(rawTag, human);
-          participantCursor++;
-        }
-        spk = batchSpeakerMap.get(rawTag) || spk;
-      } else if (spk.toLowerCase() === 'speaker' && verifiedParticipants.length > 0) {
-        spk = verifiedParticipants[0];
+      if (match) {
+        const num = parseInt(match[1], 10);
+        spk = `Speaker ${num === 0 ? 1 : num}`;
+      } else if (!spk) {
+        spk = 'Speaker 1';
       }
 
       return {
@@ -421,20 +403,14 @@ export function useMeetingBot(userId?: string) {
       setIsProcessingBatch(false);
       setBotState('IN_ROOM_STANDBY');
 
-      const fallbackSpeakerMap = new Map<string, string>();
-      let cursor = 0;
       const finalTranscripts = transcripts.map((t: TranscriptItem) => {
         let spk = (t.speaker || '').trim();
         const match = spk.match(/^Speaker\s*(\d+)$/i);
-        if (match && participants.length > 0) {
-          const rawTag = spk.toLowerCase();
-          if (!fallbackSpeakerMap.has(rawTag)) {
-            fallbackSpeakerMap.set(rawTag, participants[cursor % participants.length]);
-            cursor++;
-          }
-          spk = fallbackSpeakerMap.get(rawTag) || spk;
-        } else if (spk.toLowerCase() === 'speaker' && participants.length > 0) {
-          spk = participants[0];
+        if (match) {
+          const num = parseInt(match[1], 10);
+          spk = `Speaker ${num === 0 ? 1 : num}`;
+        } else if (!spk) {
+          spk = 'Speaker 1';
         }
         return { ...t, speaker: spk };
       });
@@ -467,7 +443,6 @@ export function useMeetingBot(userId?: string) {
     setTranscribeMode(null);
     setMeetingStartTime('');
     setParticipants([]);
-    liveSpeakerMapRef.current.clear();
 
     // Update status jadwal menjadi COMPLETED jika bot keluar dari room
     if (activeScheduleIdRef.current) {

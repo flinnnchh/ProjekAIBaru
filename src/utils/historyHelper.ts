@@ -142,7 +142,8 @@ export function createMeetingHistoryItem(params: CreateHistoryParams): MeetingHi
   });
 
   const finalParticipants = filterAndDeduplicateParticipants(rawList);
-  const speakersCount = finalParticipants.length || 1;
+  const uniqueSpeakersInTranscripts = Array.from(new Set(transcripts.map((t) => (t.speaker || '').trim()).filter(Boolean)));
+  const speakersCount = uniqueSpeakersInTranscripts.length || finalParticipants.length || 1;
 
   return {
     id: id || `hist-${Date.now()}`,
