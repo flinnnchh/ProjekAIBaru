@@ -54,6 +54,8 @@ import {
   RefreshCw,
   Server,
   AudioLines,
+  AudioWaveform,
+  Volume2,
   MailCheck,
   Mail,
   DoorOpen,
@@ -168,6 +170,12 @@ const iconMap: Record<string, LucideIcon> = {
 
   // Audio & Voice
   settings_voice: Mic,
+  graphic_eq: AudioLines,
+  waveform: AudioWaveform,
+  equalizer: AudioLines,
+  audio: AudioLines,
+  mic: Mic,
+  volume_up: Volume2,
   subtitles: Subtitles,
   record_voice_over: AudioLines,
   wifi: Wifi,

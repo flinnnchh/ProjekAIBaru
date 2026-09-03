@@ -43,6 +43,18 @@ export function useMeetingBot(userId?: string) {
     transcribeModeRef.current = transcribeMode;
   }, [transcribeMode]);
 
+  const audioDecayTimerRef = useRef<number | null>(null);
+
+  const pulseAudioActivity = useCallback(() => {
+    setAudioActive(true);
+    if (audioDecayTimerRef.current) {
+      window.clearTimeout(audioDecayTimerRef.current);
+    }
+    audioDecayTimerRef.current = window.setTimeout(() => {
+      setAudioActive(false);
+    }, 1500);
+  }, []);
+
   // Inisialisasi Socket & Storage (MongoDB) setelah user login
   useEffect(() => {
     if (!userId) return;
@@ -53,6 +65,9 @@ export function useMeetingBot(userId?: string) {
 
     initSocket(
       (newTranscript) => {
+        // Suara terdengar dan menghasilkan transkrip -> aktifkan visualizer audio
+        pulseAudioActivity();
+
         // Track speaker as participant (filtered)
         if (newTranscript.speaker) {
           const cleaned = filterAndDeduplicateParticipants([newTranscript.speaker]);
@@ -92,7 +107,11 @@ export function useMeetingBot(userId?: string) {
         setBotState(newState);
       },
       (active) => {
-        setAudioActive(active);
+        if (active) {
+          pulseAudioActivity();
+        } else {
+          setAudioActive(false);
+        }
       },
       // Batch processing progress callback
       (step, message) => {
