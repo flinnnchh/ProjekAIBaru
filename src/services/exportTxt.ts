@@ -51,9 +51,7 @@ export function exportToTxt(session: Partial<MeetingSession>, transcripts: Trans
 
 
   transcripts.forEach((t) => {
-    const langTag = t.language === 'mixed' ? '[MIXED]' : `[${(t.language || 'ID').toUpperCase()}]`;
-    content += `[${t.timestamp}] ${t.speaker} ${langTag}:\n`;
-    content += `${t.text}\n\n`;
+    content += `[${t.timestamp}] ${t.speaker}: ${t.text}\n\n`;
   });
 
   content += "====================================================================\n";

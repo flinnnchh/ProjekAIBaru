@@ -189,7 +189,6 @@ export async function exportToDocx(session: Partial<MeetingSession>, transcripts
 
           // Isi Percakapan
           ...transcripts.map((t) => {
-            const langLabel = t.language === 'mixed' ? '[MIXED]' : `[${(t.language || 'ID').toUpperCase()}]`;
             return new Paragraph({
               spacing: { after: 120 },
               children: [
@@ -201,17 +200,10 @@ export async function exportToDocx(session: Partial<MeetingSession>, transcripts
                   size: 20,
                 }),
                 new TextRun({
-                  text: `${t.speaker} `,
+                  text: `${t.speaker}: `,
                   bold: true,
                   color: "1E40AF",
                   size: 22,
-                  font: "Calibri",
-                }),
-                new TextRun({
-                  text: `${langLabel}: `,
-                  italics: true,
-                  color: "9CA3AF",
-                  size: 18,
                   font: "Calibri",
                 }),
                 new TextRun({

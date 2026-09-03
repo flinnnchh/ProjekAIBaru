@@ -322,10 +322,23 @@ export function useMeetingBot(userId?: string) {
     setIsProcessingBatch(false);
     setInterimText('');
 
-    // Gunakan hasil batch jika ada, otherwise fallback ke safety buffer atau live transcripts
-    const rawTranscripts = (data.success && data.transcripts.length > 0)
-      ? data.transcripts
-      : (fallbackTranscriptsRef.current.length > 0 ? fallbackTranscriptsRef.current : transcripts);
+    // Jika mode live dan kita sudah memiliki transkrip live yang terkonfirmasi (seperti nama & kata yang sudah benar dilihat user saat rapat),
+    // pertahankan transkrip live tersebut agar nama orang dan susunan kalimat tidak bermutasi/terdistorsi saat stop & save.
+    const isLiveMode = transcribeModeRef.current === 'live' || !transcribeModeRef.current;
+    const hasLiveTranscripts = transcripts.length > 0 || fallbackTranscriptsRef.current.length > 0;
+
+    let sourceTranscripts: TranscriptItem[];
+    if (isLiveMode && hasLiveTranscripts) {
+      sourceTranscripts = transcripts.length > 0 ? transcripts : fallbackTranscriptsRef.current;
+      console.log(`[useMeetingBot] Mode Live: Mempertahankan ${sourceTranscripts.length} entri transkrip live yang sudah terkonfirmasi.`);
+    } else if (data.success && data.transcripts.length > 0) {
+      sourceTranscripts = data.transcripts;
+      console.log(`[useMeetingBot] Mode Background / Fallback: Menggunakan ${sourceTranscripts.length} entri transkrip hasil batch.`);
+    } else {
+      sourceTranscripts = transcripts.length > 0 ? transcripts : fallbackTranscriptsRef.current;
+    }
+
+    const rawTranscripts = sourceTranscripts;
 
     let verifiedParticipants = data.participants && data.participants.length > 0
       ? filterAndDeduplicateParticipants(data.participants)

@@ -174,9 +174,7 @@ class DriveService {
       content += "LOG PERCAKAPAN & TRANSKRIP LENGKAP:\n\n";
 
       transcripts.forEach((t) => {
-        const langTag = t.language === 'mixed' ? '[MIXED]' : `[${(t.language || 'ID').toUpperCase()}]`;
-        content += `[${t.timestamp}] ${t.speaker} ${langTag}:\n`;
-        content += `${t.text}\n\n`;
+        content += `[${t.timestamp}] ${t.speaker}: ${t.text}\n\n`;
       });
 
       content += "====================================================================\n";
@@ -279,13 +277,11 @@ class DriveService {
               }),
 
               ...transcripts.map((t) => {
-                const langLabel = t.language === 'mixed' ? '[MIXED]' : `[${(t.language || 'ID').toUpperCase()}]`;
                 return new Paragraph({
                   spacing: { after: 120 },
                   children: [
-                    new TextRun({ text: `[${t.timestamp}] `, bold: true, size: 20, color: "6B7280", font: "Calibri" }),
-                    new TextRun({ text: `${t.speaker} `, bold: true, size: 22, color: "111827", font: "Calibri" }),
-                    new TextRun({ text: `${langLabel}: `, size: 18, color: "3B82F6", font: "Calibri" }),
+                    new TextRun({ text: `[${t.timestamp}] `, bold: true, size: 20, color: "6B7280", font: "Consolas" }),
+                    new TextRun({ text: `${t.speaker}: `, bold: true, size: 22, color: "1E40AF", font: "Calibri" }),
                     new TextRun({ text: t.text, size: 22, color: "1F2937", font: "Calibri" }),
                   ],
                 });
