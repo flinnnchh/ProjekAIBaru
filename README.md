@@ -162,6 +162,9 @@ Aplikasi mendukung sinkronisasi langsung ke Google Drive pengguna melalui OAuth 
    - Server backend akan mengonversi notulen rapat menjadi berkas `.docx` resmi dan mengunggahnya langsung ke Google Drive pengguna.
    - Pengguna akan mendapatkan tautan langsung (*view link*) ke berkas dokumen di Google Drive.
 
+> 📖 **Panduan Lengkap Handover & Google Cloud:**  
+> Untuk penjelasan detail arsitektur integrasi, cara mengatasi perbedaan akun browser, serta panduan serah terima (*handover*) dan setup Google Cloud untuk perusahaan (tanpa batas user/testing list), silakan baca [PANDUAN_INTEGRASI_GOOGLE.md](PANDUAN_INTEGRASI_GOOGLE.md).
+
 ---
 
 ## 🤖 Panduan Login Session Akun Google Bot (Playwright)
